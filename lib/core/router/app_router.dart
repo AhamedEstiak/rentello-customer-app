@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/api/api_client.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/phone_entry_screen.dart';
 import '../../features/auth/screens/otp_verify_screen.dart';
@@ -12,7 +13,10 @@ import '../../features/booking/screens/fare_review_screen.dart';
 import '../../features/booking/screens/booking_confirm_screen.dart';
 import '../../features/bookings/screens/bookings_list_screen.dart';
 import '../../features/bookings/screens/booking_detail_screen.dart';
+import '../../features/bookings/screens/booking_invoice_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
+import '../../features/support/screens/support_screen.dart';
 import '../shell/main_shell.dart';
 
 class RouterNotifier extends ChangeNotifier {
@@ -25,6 +29,8 @@ class RouterNotifier extends ChangeNotifier {
       _authState = next;
       notifyListeners();
     });
+    // On 401, API client clears token and calls this; we logout so redirect runs.
+    onUnauthorized = () => _ref.read(authProvider.notifier).logout();
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
@@ -142,12 +148,28 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => BookingDetailScreen(
                   bookingId: state.pathParameters['id']!,
                 ),
+                routes: [
+                  GoRoute(
+                    path: 'invoice',
+                    builder: (context, state) => BookingInvoiceScreen(
+                      bookingId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationsScreen(),
+          ),
+          GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: '/support',
+            builder: (context, state) => const SupportScreen(),
           ),
         ],
       ),

@@ -94,9 +94,14 @@ class ProfileScreen extends ConsumerWidget {
                     onTap: () => context.go('/bookings'),
                   ),
                   _ActionTile(
+                    icon: Icons.notifications_outlined,
+                    label: 'Notifications',
+                    onTap: () => context.go('/notifications'),
+                  ),
+                  _ActionTile(
                     icon: Icons.help_outline,
                     label: 'Help & Support',
-                    onTap: () {},
+                    onTap: () => context.go('/support'),
                   ),
                   const SizedBox(height: 16),
                   _ActionTile(

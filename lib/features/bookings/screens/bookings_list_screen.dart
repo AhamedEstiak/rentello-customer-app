@@ -6,12 +6,22 @@ import '../../../core/models/booking.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/bookings_provider.dart';
 
-class BookingsListScreen extends ConsumerWidget {
+class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bookingsAsync = ref.watch(myBookingsProvider);
+  ConsumerState<BookingsListScreen> createState() => _BookingsListScreenState();
+}
+
+class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
+  int _page = 1;
+  String _status = 'all';
+
+  BookingsQuery get _query => BookingsQuery(page: _page, status: _status);
+
+  @override
+  Widget build(BuildContext context) {
+    final responseAsync = ref.watch(myBookingsProvider(_query));
 
     return Scaffold(
       appBar: AppBar(
@@ -23,54 +33,184 @@ class BookingsListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: bookingsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-              const SizedBox(height: 12),
-              Text(err.toString(), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(myBookingsProvider),
-                child: const Text('Retry'),
-              ),
-            ],
+      body: Column(
+        children: [
+          _StatusTabs(
+            current: _status,
+            onSelected: (s) => setState(() {
+              _status = s;
+              _page = 1;
+            }),
           ),
-        ),
-        data: (bookings) => bookings.isEmpty
-            ? Center(
+          Expanded(
+            child: responseAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.receipt_long, size: 64, color: AppColors.border),
+                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                    const SizedBox(height: 12),
+                    Text(err.toString(), textAlign: TextAlign.center),
                     const SizedBox(height: 16),
-                    const Text(
-                      'No bookings yet',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Book a vehicle to get started',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: () => context.go('/home'),
-                      child: const Text('Browse Vehicles'),
+                      onPressed: () => ref.invalidate(myBookingsProvider),
+                      child: const Text('Retry'),
                     ),
                   ],
                 ),
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: bookings.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) =>
-                    _BookingCard(booking: bookings[index]),
               ),
+              data: (response) => _buildList(context, response),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildList(BuildContext context, BookingsResponse response) {
+    final bookings = response.data;
+    final pagination = response.pagination;
+
+    if (bookings.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.receipt_long, size: 64, color: AppColors.border),
+            const SizedBox(height: 16),
+            const Text(
+              'No bookings yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Book a vehicle to get started',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => context.go('/home'),
+              child: const Text('Browse Vehicles'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: bookings.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) =>
+                _BookingCard(booking: bookings[index]),
+          ),
+        ),
+        if (pagination.totalPages > 1)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _page > 1
+                      ? () => setState(() => _page--)
+                      : null,
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Page ${pagination.page} of ${pagination.totalPages}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _page < pagination.totalPages
+                      ? () => setState(() => _page++)
+                      : null,
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _StatusTabs extends StatelessWidget {
+  final String current;
+  final ValueChanged<String> onSelected;
+
+  const _StatusTabs({required this.current, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          _TabChip(
+            label: 'All',
+            selected: current == 'all',
+            onTap: () => onSelected('all'),
+          ),
+          const SizedBox(width: 8),
+          _TabChip(
+            label: 'Upcoming',
+            selected: current == 'upcoming',
+            onTap: () => onSelected('upcoming'),
+          ),
+          const SizedBox(width: 8),
+          _TabChip(
+            label: 'Past',
+            selected: current == 'past',
+            onTap: () => onSelected('past'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary
+              : AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.primary,
+          ),
+        ),
       ),
     );
   }

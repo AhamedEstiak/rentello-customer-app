@@ -165,11 +165,12 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
         _error = e.response?.data?['error'] as String? ?? 'Failed to place booking';
         _isSubmitting = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       setState(() {
-        _error = 'An unexpected error occurred';
+        _error = e.toString();
         _isSubmitting = false;
       });
+      debugPrint('Booking place error: $e\n$stackTrace');
     }
   }
 
