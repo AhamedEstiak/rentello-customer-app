@@ -17,7 +17,7 @@ class OtpVerifyScreen extends ConsumerStatefulWidget {
 
 class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   final _controller = TextEditingController();
-  int _secondsLeft = 60;
+  int _secondsLeft = 30;
   Timer? _timer;
 
   @override
@@ -34,7 +34,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   }
 
   void _startTimer() {
-    _secondsLeft = 60;
+    _secondsLeft = 30;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_secondsLeft <= 0) {
@@ -110,6 +110,10 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
                       border: Border.all(color: AppColors.error, width: 2),
                     ),
                   ),
+                  forceErrorState: authState.error != null,
+                  onChanged: (_) {
+                    if (authState.error != null) auth.clearError();
+                  },
                   onCompleted: (otp) => _verify(auth, otp),
                 ),
               ),
@@ -171,8 +175,12 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   Future<void> _verify(AuthNotifier auth, String otp) async {
     if (otp.length != 6) return;
     final success = await auth.verifyOtp(widget.phone, otp);
-    if (success && mounted) {
-      context.go('/home');
+    if (mounted) {
+      if (success) {
+        context.go('/home');
+      } else {
+        _controller.clear();
+      }
     }
   }
 }

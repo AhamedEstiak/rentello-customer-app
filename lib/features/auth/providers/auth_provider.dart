@@ -228,12 +228,14 @@ class AuthNotifier extends Notifier<AuthState> {
       state = AuthState(token: token, customer: customer);
       return true;
     } on DioException catch (e) {
-      final msg =
-          e.response?.data?['error'] as String? ?? 'Invalid OTP';
+      final msg = e.response?.data?['error'] as String? ??
+          'The code you entered is incorrect. Please try again.';
       state = state.copyWith(isLoading: false, error: msg);
       return false;
     }
   }
+
+  void clearError() => state = state.copyWith(clearError: true);
 
   Future<void> updateProfile({
     String? name,

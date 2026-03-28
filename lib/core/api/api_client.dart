@@ -101,10 +101,15 @@ final dioProvider = Provider<Dio>((ref) {
         final path = opts.path;
 
         if (path.endsWith(ApiEndpoints.authRefresh) ||
-            path.endsWith(ApiEndpoints.sendOtp) ||
-            path.endsWith(ApiEndpoints.verifyOtp)) {
+            path.endsWith(ApiEndpoints.sendOtp)) {
           await clearAuthStorage(_storage);
           onUnauthorized?.call();
+          handler.next(error);
+          return;
+        }
+
+        // 401 on verify-otp means wrong code, not a session issue.
+        if (path.endsWith(ApiEndpoints.verifyOtp)) {
           handler.next(error);
           return;
         }
