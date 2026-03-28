@@ -14,6 +14,9 @@ class AuthStorageKeys {
   static const refreshToken = 'customer_refresh_token';
 
   /// JSON-encoded customer snapshot from last login, refresh, or profile update.
+  ///
+  /// Must stay in sync with tokens so a valid JWT + this snapshot can restore
+  /// session without `GET /auth/me` (see auth flow in `features/auth/providers`).
   static const customerSnapshot = 'customer_snapshot';
 }
 

@@ -189,6 +189,14 @@ class ApiEndpoints {
   static const verifyOtp = '/auth/verify-otp';
   /// `POST` body: `{ [CustomerAuthJsonKeys.refreshToken] }` → `{ [CustomerAuthJsonKeys.token], … }`.
   static const authRefresh = '/auth/refresh';
+
+  /// Current customer profile; also used to validate the access token after cold start.
+  ///
+  /// The app only calls this path from auth when local JWT + snapshot
+  /// checks cannot restore session alone. Server logs may show a different path
+  /// (e.g. `/api/auth/session`) if the gateway aliases or middleware rewrites this
+  /// route, or may log “session” once per authenticated request — that is not
+  /// extra Flutter calls to this constant.
   static const me = '/auth/me';
   static const vehicles = '/vehicles';
   static const routes = '/routes';

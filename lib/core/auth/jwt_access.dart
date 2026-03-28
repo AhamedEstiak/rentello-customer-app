@@ -2,6 +2,11 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 
 /// Reads JWT `exp` without verifying the signature (enough for client-side expiry checks).
 ///
+/// **Backend contract:** access tokens should be JWTs that include a numeric `exp`
+/// claim. That lets auth restore from secure storage without `GET /auth/me` when a
+/// cached customer snapshot is also present. Opaque tokens or JWTs without `exp`
+/// force a network hydrate on each cold restore.
+///
 /// Uses [JwtDecoder] for base64url payload decoding. [isOpaqueToken] and [tryExpiryUtc]
 /// cover the non-JWT case: opaque strings are not parsed as JWTs, and callers should
 /// use a network fallback (e.g. `GET /me`) instead of local expiry.

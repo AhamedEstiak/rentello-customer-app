@@ -43,14 +43,22 @@ class AuthState {
 }
 
 class AuthNotifier extends Notifier<AuthState> {
+  /// Ensures concurrent [build] invocations share one load and never parallelize
+  /// `GET /auth/me` via [_hydrateFromMe].
+  Future<void>? _loadFromStorageInFlight;
+
   @override
   AuthState build() {
+    ref.keepAlive();
     _loadFromStorage();
     return const AuthState(isLoading: true);
   }
 
   Dio get _dio => ref.read(dioProvider);
 
+  /// Writes [AuthStorageKeys.customerSnapshot] so cold start can skip `GET /auth/me`
+  /// when the access JWT is still valid. Call after every successful login, refresh,
+  /// hydrate-from-me, and profile update.
   Future<void> _persistCustomerSnapshot(Customer customer) async {
     await _storage.write(
       key: AuthStorageKeys.customerSnapshot,
@@ -126,7 +134,13 @@ class AuthNotifier extends Notifier<AuthState> {
   /// JWT expired + refresh → `POST /auth/refresh`; opaque/unknown expiry or
   /// missing/bad snapshot → one `GET /auth/me`; refresh failure or expired JWT
   /// without refresh → clear storage and logged out.
-  Future<void> _loadFromStorage() async {
+  void _loadFromStorage() {
+    _loadFromStorageInFlight ??= _loadFromStorageImpl().whenComplete(() {
+      _loadFromStorageInFlight = null;
+    });
+  }
+
+  Future<void> _loadFromStorageImpl() async {
     try {
       final access = await _storage.read(key: AuthStorageKeys.accessToken);
       if (access == null) {
