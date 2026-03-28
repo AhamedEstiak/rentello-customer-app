@@ -77,27 +77,30 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
     final pagination = response.pagination;
 
     if (bookings.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.receipt_long, size: 64, color: AppColors.border),
-            const SizedBox(height: 16),
-            const Text(
-              'No bookings yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Book a vehicle to get started',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => context.go('/home'),
-              child: const Text('Browse Vehicles'),
-            ),
-          ],
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.receipt_long, size: 64, color: AppColors.border),
+              const SizedBox(height: 16),
+              const Text(
+                'No bookings yet',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Book a vehicle to get started',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.go('/home'),
+                child: const Text('Browse Vehicles'),
+              ),
+            ],
+          ),
         ),
       );
     }

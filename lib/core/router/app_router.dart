@@ -5,6 +5,7 @@ import '../../core/api/api_client.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/screens/phone_entry_screen.dart';
 import '../../features/auth/screens/otp_verify_screen.dart';
+import '../../features/auth/screens/splash_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/home/screens/vehicle_select_screen.dart';
 import '../../features/booking/screens/booking_type_screen.dart';
@@ -34,14 +35,19 @@ class RouterNotifier extends ChangeNotifier {
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
-    if (_authState.isLoading) return null;
+    final loc = state.matchedLocation;
+
+    if (_authState.isLoading) {
+      return loc == '/splash' ? null : '/splash';
+    }
 
     final isAuthenticated = _authState.isAuthenticated;
-    final isOnAuthPage = state.matchedLocation == '/login' ||
-        state.matchedLocation == '/otp';
+    final isOnAuthPage = loc == '/login' || loc == '/otp';
+
+    if (isAuthenticated && isOnAuthPage) return '/home';
+    if (isAuthenticated && loc == '/splash') return '/home';
 
     if (!isAuthenticated && !isOnAuthPage) return '/login';
-    if (isAuthenticated && isOnAuthPage) return '/home';
     return null;
   }
 }
@@ -51,10 +57,14 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(notifier.dispose);
 
   return GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const PhoneEntryScreen(),

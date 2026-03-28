@@ -1,7 +1,11 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/auth/auth_storage.dart';
+import '../../../core/auth/jwt_access.dart';
 import '../../../core/models/customer.dart';
 
 const _storage = FlutterSecureStorage();
@@ -47,21 +51,118 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Dio get _dio => ref.read(dioProvider);
 
+  Future<void> _persistCustomerSnapshot(Customer customer) async {
+    await _storage.write(
+      key: AuthStorageKeys.customerSnapshot,
+      value: jsonEncode(customer.toJson()),
+    );
+  }
+
+  Customer? _tryParseSnapshot(String? snapshotJson) {
+    if (snapshotJson == null) return null;
+    try {
+      final map = jsonDecode(snapshotJson) as Map<String, dynamic>;
+      return Customer.fromJson(map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _hydrateFromMe(String accessToken) async {
+    final res = await _dio.get(ApiEndpoints.me);
+    final customer =
+        Customer.fromJson(res.data['customer'] as Map<String, dynamic>);
+    await _persistCustomerSnapshot(customer);
+    state = AuthState(
+      isLoading: false,
+      token: accessToken,
+      customer: customer,
+    );
+  }
+
+  /// Returns true if session was restored from the refresh response.
+  Future<bool> _tryRefresh(String refreshToken) async {
+    try {
+      final res = await postAuthRefresh(_dio, refreshToken);
+      final data = res.data;
+      if (data == null) return false;
+      final token = data[CustomerAuthJsonKeys.token] as String?;
+      final customerJson = data[CustomerAuthJsonKeys.customer];
+      if (token == null || customerJson is! Map<String, dynamic>) {
+        return false;
+      }
+      final customer = Customer.fromJson(customerJson);
+      await _storage.write(key: AuthStorageKeys.accessToken, value: token);
+      final newRefresh = data[CustomerAuthJsonKeys.refreshToken] as String?;
+      if (newRefresh != null) {
+        await _storage.write(
+          key: AuthStorageKeys.refreshToken,
+          value: newRefresh,
+        );
+      }
+      await _persistCustomerSnapshot(customer);
+      state = AuthState(
+        isLoading: false,
+        token: token,
+        customer: customer,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Restores session from secure storage without redundant `GET /auth/me` when
+  /// the access token is a non-expired JWT and a customer snapshot exists.
+  ///
+  /// Branches: no access → logged out; JWT valid + snapshot → memory only;
+  /// JWT expired + refresh → `POST /auth/refresh`; opaque/unknown expiry or
+  /// missing/bad snapshot → one `GET /auth/me`; refresh failure or expired JWT
+  /// without refresh → clear storage and logged out.
   Future<void> _loadFromStorage() async {
     try {
-      final token = await _storage.read(key: 'customer_token');
-      if (token == null) {
-        state = const AuthState();
+      final access = await _storage.read(key: AuthStorageKeys.accessToken);
+      if (access == null) {
+        state = const AuthState(isLoading: false);
         return;
       }
 
-      final res = await _dio.get(ApiEndpoints.me);
-      final customer =
-          Customer.fromJson(res.data['customer'] as Map<String, dynamic>);
-      state = AuthState(token: token, customer: customer);
+      final refresh = await _storage.read(key: AuthStorageKeys.refreshToken);
+      final snapshotJson =
+          await _storage.read(key: AuthStorageKeys.customerSnapshot);
+
+      final canCheckJwt = JwtAccess.canCheckExpiryLocally(access);
+
+      if (canCheckJwt) {
+        if (JwtAccess.isAccessStillValid(access)) {
+          final cached = _tryParseSnapshot(snapshotJson);
+          if (cached != null) {
+            state = AuthState(
+              isLoading: false,
+              token: access,
+              customer: cached,
+            );
+            return;
+          }
+          await _hydrateFromMe(access);
+          return;
+        }
+
+        if (refresh != null) {
+          final ok = await _tryRefresh(refresh);
+          if (ok) return;
+        }
+        await clearAuthStorage(_storage);
+        state = const AuthState(isLoading: false);
+        return;
+      }
+
+      // Opaque token or JWT without usable `exp`: cannot skip `/me` without a
+      // local validity signal; one GET migrates snapshot when possible.
+      await _hydrateFromMe(access);
     } catch (_) {
-      await _storage.delete(key: 'customer_token');
-      state = const AuthState();
+      await clearAuthStorage(_storage);
+      state = const AuthState(isLoading: false);
     }
   }
 
@@ -87,10 +188,22 @@ class AuthNotifier extends Notifier<AuthState> {
         'otp': otp,
         if (name != null) 'name': name,
       });
-      final token = res.data['token'] as String;
-      final customer =
-          Customer.fromJson(res.data['customer'] as Map<String, dynamic>);
-      await _storage.write(key: 'customer_token', value: token);
+      final data = res.data as Map<String, dynamic>;
+      final token = data[CustomerAuthJsonKeys.token] as String;
+      final newRefresh = data[CustomerAuthJsonKeys.refreshToken] as String?;
+      final customer = Customer.fromJson(
+        data[CustomerAuthJsonKeys.customer] as Map<String, dynamic>,
+      );
+      await _storage.write(key: AuthStorageKeys.accessToken, value: token);
+      if (newRefresh != null) {
+        await _storage.write(
+          key: AuthStorageKeys.refreshToken,
+          value: newRefresh,
+        );
+      } else {
+        await _storage.delete(key: AuthStorageKeys.refreshToken);
+      }
+      await _persistCustomerSnapshot(customer);
       state = AuthState(token: token, customer: customer);
       return true;
     } on DioException catch (e) {
@@ -115,6 +228,7 @@ class AuthNotifier extends Notifier<AuthState> {
       });
       final updated =
           Customer.fromJson(res.data['customer'] as Map<String, dynamic>);
+      await _persistCustomerSnapshot(updated);
       state = state.copyWith(isLoading: false, customer: updated);
     } on DioException catch (e) {
       final msg =
@@ -124,7 +238,7 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: 'customer_token');
+    await clearAuthStorage(_storage);
     state = const AuthState();
   }
 }

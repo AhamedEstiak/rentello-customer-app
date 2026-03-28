@@ -30,6 +30,17 @@ class Customer {
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'address': address,
+        'totalTrips': totalTrips,
+        'totalSpent': totalSpent,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
   String get loyaltyTier {
     if (totalTrips >= 50 || totalSpent >= 500000) return 'VIP';
     if (totalTrips >= 20 || totalSpent >= 150000) return 'Gold';

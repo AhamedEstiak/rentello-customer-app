@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/booking.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class BookingFormState {
   final String vehicleId;
@@ -88,6 +89,11 @@ final bookingFormProvider =
 
 final intercityRoutesProvider =
     FutureProvider<List<IntercityRoute>>((ref) async {
+  final auth = ref.watch(authProvider);
+  if (!auth.isAuthenticated) {
+    return <IntercityRoute>[];
+  }
+
   final dio = ref.watch(dioProvider);
   final res = await dio.get(ApiEndpoints.routes);
   final list = res.data['routes'] as List<dynamic>;

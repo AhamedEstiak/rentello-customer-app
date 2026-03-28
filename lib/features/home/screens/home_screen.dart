@@ -50,7 +50,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _syncBookingFormProvider());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _syncBookingFormProvider(),
+    );
   }
 
   @override
@@ -129,14 +131,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _syncBookingFormProvider() {
-    final routes = ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
-    final vehicles = ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
+    final routes =
+        ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
+    final vehicles =
+        ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
     final category = _vehicles[_selectedVehicleIndex].categoryCode;
     final vid = _vehicleIdForCategory(vehicles, category);
     ref
         .read(bookingFormProvider.notifier)
-        .setState(_buildBookingFormState(matchedRoute: matched, vehicleId: vid));
+        .setState(
+          _buildBookingFormState(matchedRoute: matched, vehicleId: vid),
+        );
   }
 
   bool _canEstimateFare({
@@ -151,8 +157,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _maybeUpdateFareEstimate() {
-    final routes = ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
-    final vehicles = ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
+    final routes =
+        ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
+    final vehicles =
+        ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
     final category = _vehicles[_selectedVehicleIndex].categoryCode;
     final vid = _vehicleIdForCategory(vehicles, category);
@@ -181,9 +189,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DistrictUpazilaSelectorSheet(
-        initialSelection: _pickup,
-      ),
+      builder: (_) => DistrictUpazilaSelectorSheet(initialSelection: _pickup),
     );
     if (!mounted || selection == null) return;
     setState(() => _pickup = selection);
@@ -195,9 +201,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DistrictUpazilaSelectorSheet(
-        initialSelection: _dropoff,
-      ),
+      builder: (_) => DistrictUpazilaSelectorSheet(initialSelection: _dropoff),
     );
     if (!mounted || selection == null) return;
     setState(() => _dropoff = selection);
@@ -216,8 +220,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onContinue() {
-    final routes = ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
-    final vehicles = ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
+    final routes =
+        ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
+    final vehicles =
+        ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
     final category = _vehicles[_selectedVehicleIndex].categoryCode;
     final vid = _vehicleIdForCategory(vehicles, category);
@@ -228,9 +234,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           content: Text(
             matched == null
                 ? 'No intercity route matches this pickup and destination. '
-                    'Choose locations that appear on a published route.'
+                      'Choose locations that appear on a published route.'
                 : 'Could not resolve a vehicle for ${_vehicles[_selectedVehicleIndex].label}. '
-                    'Try another type or wait for vehicles to load.',
+                      'Try another type or wait for vehicles to load.',
           ),
         ),
       );
@@ -251,10 +257,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       initialDate: _pickupDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) => Theme(
-        data: AppTheme.pickerDialogTheme,
-        child: child!,
-      ),
+      builder: (context, child) =>
+          Theme(data: AppTheme.pickerDialogTheme, child: child!),
     );
     if (picked != null) setState(() => _pickupDate = picked);
     _syncBookingFormProvider();
@@ -265,10 +269,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _pickupTime,
-      builder: (context, child) => Theme(
-        data: AppTheme.pickerDialogTheme,
-        child: child!,
-      ),
+      builder: (context, child) =>
+          Theme(data: AppTheme.pickerDialogTheme, child: child!),
     );
     if (picked != null) setState(() => _pickupTime = picked);
     _syncBookingFormProvider();
@@ -286,7 +288,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return _pickup!.label;
   }
 
-  String _destinationSubtitle(IntercityRoute? matched, List<IntercityRoute> routes) {
+  String _destinationSubtitle(
+    IntercityRoute? matched,
+    List<IntercityRoute> routes,
+  ) {
     if (_dropoff == null) return 'Tap to select district & upazila';
     if (matched != null) {
       return '${matched.displayName} · ${matched.distanceKm.round()} km';
@@ -299,13 +304,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<List<IntercityRoute>>>(intercityRoutesProvider, (prev, next) {
+    ref.listen<AsyncValue<List<IntercityRoute>>>(intercityRoutesProvider, (
+      prev,
+      next,
+    ) {
       if (next.hasValue) {
         _syncBookingFormProvider();
         _maybeUpdateFareEstimate();
       }
     });
-    ref.listen<AsyncValue<List<Vehicle>>>(vehicleListProvider('ALL'), (prev, next) {
+    ref.listen<AsyncValue<List<Vehicle>>>(vehicleListProvider('ALL'), (
+      prev,
+      next,
+    ) {
       if (next.hasValue) {
         _syncBookingFormProvider();
         _maybeUpdateFareEstimate();
@@ -323,7 +334,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final vehicleId = _vehicleIdForCategory(vehicles, category);
 
     final bd = fareState.breakdown;
-    final canShowNumbers = _canEstimateFare(matchedRoute: matched, vehicleId: vehicleId) &&
+    final canShowNumbers =
+        _canEstimateFare(matchedRoute: matched, vehicleId: vehicleId) &&
         bd != null &&
         !fareState.isLoading;
 
@@ -346,18 +358,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             const PlanTripHeader(),
             const SizedBox(height: 20),
-            const PlanTripSectionLabel('PICKUP LOCATION'),
+            // const PlanTripSectionLabel('PICKUP LOCATION'),
             const SizedBox(height: 8),
             PlanTripLocationCard(
-              iconColor: AppColors.primary,
-              iconBg: Colors.white,
+              iconColor: AppColors.success,
+              iconBg: AppColors.success.withValues(alpha: 0.12),
               city: _primaryLine(_pickup?.label, 'Pickup location'),
               subtitle: _pickupSubtitle(),
               trailing: const PlanTripFixedBadge(),
               onTap: _onPickupTap,
             ),
             PlanTripSwapRow(onSwap: _onSwap),
-            const PlanTripSectionLabel('DESTINATION'),
+            // const PlanTripSectionLabel('DESTINATION'),
             const SizedBox(height: 8),
             PlanTripLocationCard(
               iconColor: AppColors.error,
@@ -405,7 +417,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: 16),
             PlanTripFareEstimateCard(
-              isLoading: fareState.isLoading &&
+              isLoading:
+                  fareState.isLoading &&
                   _canEstimateFare(matchedRoute: matched, vehicleId: vehicleId),
               errorMessage: fareState.fareError,
               hasEstimate: canShowNumbers,
