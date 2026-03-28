@@ -134,4 +134,12 @@ class AppTheme {
       ),
     );
   }
+
+  /// [showDatePicker] / [showTimePicker]: match app chrome with primary actions.
+  static ThemeData get pickerDialogTheme {
+    final theme = light;
+    return theme.copyWith(
+      colorScheme: theme.colorScheme.copyWith(primary: AppColors.primary),
+    );
+  }
 }

@@ -49,7 +49,11 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(height: 12),
                     Text(err.toString(), textAlign: TextAlign.center),
                     const SizedBox(height: 16),
@@ -116,9 +120,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  onPressed: _page > 1
-                      ? () => setState(() => _page--)
-                      : null,
+                  onPressed: _page > 1 ? () => setState(() => _page--) : null,
                   icon: const Icon(Icons.chevron_left),
                 ),
                 Padding(
@@ -265,12 +267,19 @@ class _BookingCard extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       booking.pickupAddress,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -283,11 +292,20 @@ class _BookingCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 14, color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.schedule,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 4),
                       Text(
-                        DateFormat('dd MMM, hh:mm a').format(booking.scheduledPickup),
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        DateFormat(
+                          'dd MMM, hh:mm a',
+                        ).format(booking.scheduledPickup),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -344,7 +362,11 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         status.replaceAll('_', ' '),
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _color),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: _color,
+        ),
       ),
     );
   }

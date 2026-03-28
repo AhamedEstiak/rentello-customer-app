@@ -38,9 +38,9 @@ class MainShell extends StatelessWidget {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car_outlined),
-            activeIcon: Icon(Icons.directions_car),
-            label: 'Vehicles',
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long_outlined),

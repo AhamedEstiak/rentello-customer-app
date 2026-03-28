@@ -350,6 +350,8 @@ class IntercityRoute {
   final String name;
   final String originZone;
   final String destinationZone;
+  final String? originUpazilaId;
+  final String? destinationUpazilaId;
   final double distanceKm;
   final double estimatedHours;
   final double basePriceSedan;
@@ -362,6 +364,8 @@ class IntercityRoute {
     required this.name,
     required this.originZone,
     required this.destinationZone,
+    this.originUpazilaId,
+    this.destinationUpazilaId,
     required this.distanceKm,
     required this.estimatedHours,
     required this.basePriceSedan,
@@ -375,6 +379,8 @@ class IntercityRoute {
         name: json['name'] as String,
         originZone: json['originZone'] as String,
         destinationZone: json['destinationZone'] as String,
+        originUpazilaId: json['originUpazilaId'] as String?,
+        destinationUpazilaId: json['destinationUpazilaId'] as String?,
         distanceKm: double.parse(json['distanceKm'].toString()),
         estimatedHours: double.parse(json['estimatedHours'].toString()),
         basePriceSedan: double.parse(json['basePriceSedan'].toString()),

@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/models/locations.dart';
 import '../providers/booking_form_provider.dart';
+import '../widgets/district_upazila_selector_sheet.dart';
 
 class BookingFormScreen extends ConsumerStatefulWidget {
   final String vehicleId;
@@ -29,6 +31,11 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
   DateTime? _dropoffDate;
   double _hours = 2;
   String? _selectedRouteId;
+  String? _pickupLocationId;
+  String? _dropoffLocationId;
+
+  bool get _requiresDropoff =>
+      widget.bookingType != 'INTERCITY' && widget.bookingType != 'AIRPORT_TRANSFER';
 
   @override
   void initState() {
@@ -62,6 +69,36 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     }
   }
 
+  Future<void> _selectPickupLocation() async {
+    final selection = await showModalBottomSheet<LocationSelection>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const DistrictUpazilaSelectorSheet(),
+    );
+
+    if (!mounted || selection == null) return;
+
+    setState(() {
+      _pickupLocationId = selection.upazilaId;
+      _pickupCtrl.text = selection.label;
+    });
+  }
+
+  Future<void> _selectDropoffLocation() async {
+    final selection = await showModalBottomSheet<LocationSelection>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const DistrictUpazilaSelectorSheet(),
+    );
+
+    if (!mounted || selection == null) return;
+
+    setState(() {
+      _dropoffLocationId = selection.upazilaId;
+      _dropoffCtrl.text = selection.label;
+    });
+  }
+
   Future<void> _pickDate(bool isPickup) async {
     final now = DateTime.now();
     final date = await showDatePicker(
@@ -69,6 +106,10 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
       initialDate: now,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
+      builder: (context, child) => Theme(
+        data: AppTheme.pickerDialogTheme,
+        child: child!,
+      ),
     );
     if (date == null) return;
 
@@ -76,6 +117,10 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
+      builder: (context, child) => Theme(
+        data: AppTheme.pickerDialogTheme,
+        child: child!,
+      ),
     );
     if (time == null) return;
 
@@ -105,21 +150,29 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
             _SectionLabel('Pickup Location'),
             TextFormField(
               controller: _pickupCtrl,
+              readOnly: true,
+              onTap: _selectPickupLocation,
               decoration: const InputDecoration(
-                hintText: 'Enter pickup address',
+                hintText: 'Select pickup location',
                 prefixIcon: Icon(Icons.location_on_outlined),
               ),
               validator: (v) => v?.isEmpty == true ? 'Required' : null,
             ),
             const SizedBox(height: 16),
             if (widget.bookingType != 'INTERCITY') ...[
-              _SectionLabel('Drop-off Location (optional)'),
+              _SectionLabel(_requiresDropoff ? 'Drop-off Location' : 'Drop-off Location (optional)'),
               TextFormField(
                 controller: _dropoffCtrl,
+                readOnly: true,
+                onTap: _selectDropoffLocation,
                 decoration: const InputDecoration(
-                  hintText: 'Enter drop-off address',
+                  hintText: 'Select drop-off location',
                   prefixIcon: Icon(Icons.location_on),
                 ),
+                validator: (_) {
+                  if (!_requiresDropoff) return null;
+                  return _dropoffLocationId == null ? 'Required' : null;
+                },
               ),
               const SizedBox(height: 16),
             ],
@@ -223,7 +276,21 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
                                       child: Text(r.displayName),
                                     ))
                                 .toList(),
-                            onChanged: (v) => setState(() => _selectedRouteId = v),
+                            onChanged: (v) {
+                              if (v == null) return;
+                              dynamic selected;
+                              for (final r in routes) {
+                                if ((r as dynamic).id == v) {
+                                  selected = r;
+                                  break;
+                                }
+                              }
+                              setState(() {
+                                _selectedRouteId = v;
+                                _dropoffLocationId =
+                                    (selected as dynamic).destinationUpazilaId as String?;
+                              });
+                            },
                           ),
                   ) ??
                   const SizedBox.shrink(),
@@ -247,6 +314,12 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
       );
       return;
     }
+    if (_requiresDropoff && _dropoffLocationId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select drop-off location')),
+      );
+      return;
+    }
 
     int days = 1;
     double hours = _hours;
@@ -262,6 +335,8 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
       bookingType: widget.bookingType,
       pickupAddress: _pickupCtrl.text.trim(),
       dropoffAddress: _dropoffCtrl.text.trim(),
+      pickupLocationId: _pickupLocationId,
+      dropoffLocationId: _dropoffLocationId,
       scheduledPickup: _pickupDate,
       scheduledDropoff: _dropoffDate,
       totalHours: hours,

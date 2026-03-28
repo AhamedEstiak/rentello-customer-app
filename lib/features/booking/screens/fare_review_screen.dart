@@ -36,71 +36,173 @@ class _FareReviewScreenState extends ConsumerState<FareReviewScreen> {
   Widget build(BuildContext context) {
     final fareState = ref.watch(fareEstimateProvider);
     final form = ref.watch(bookingFormProvider);
+    final hasFareError =
+        fareState.fareError != null && fareState.fareError!.isNotEmpty;
+    final canConfirm = fareState.breakdown != null && !hasFareError;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Fare Summary')),
       body: fareState.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : fareState.breakdown == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline, color: AppColors.error, size: 48),
-                      const SizedBox(height: 12),
-                      Text(fareState.error ?? 'Failed to estimate fare'),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () =>
-                            ref.read(fareEstimateProvider.notifier).estimate(form),
-                        child: const Text('Retry'),
-                      ),
-                    ],
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _BookingSummaryCard(form: form),
+                const SizedBox(height: 16),
+                if (hasFareError) ...[
+                  _ErrorBanner(
+                    message: fareState.fareError!,
+                    onRetry: () =>
+                        ref.read(fareEstimateProvider.notifier).estimate(form),
                   ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _BookingSummaryCard(form: form),
-                    const SizedBox(height: 16),
-                    _FareCard(breakdown: fareState.breakdown!),
-                    const SizedBox(height: 16),
-                    _PromoSection(
-                      controller: _promoCtrl,
-                      promoDiscount: fareState.promoDiscount,
-                      error: fareState.error,
-                      onApply: () => ref.read(fareEstimateProvider.notifier).applyPromo(
-                            _promoCtrl.text.trim(),
-                            fareState.breakdown!.subtotal,
+                  const SizedBox(height: 16),
+                ],
+                if (fareState.breakdown != null) ...[
+                  _FareCard(breakdown: fareState.breakdown!),
+                  const SizedBox(height: 16),
+                  _PromoSection(
+                    controller: _promoCtrl,
+                    promoDiscount: fareState.promoDiscount,
+                    error: fareState.promoError,
+                    onApply: () =>
+                        ref.read(fareEstimateProvider.notifier).applyPromo(
+                              _promoCtrl.text.trim(),
+                              fareState.breakdown!.subtotal,
+                            ),
+                  ),
+                  const SizedBox(height: 16),
+                  _TotalCard(
+                    subtotal: fareState.breakdown!.subtotal,
+                    promoDiscount: fareState.promoDiscount,
+                    baseDiscount: fareState.breakdown!.discount,
+                  ),
+                  const SizedBox(height: 24),
+                ] else ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Fare not available',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'We could not calculate a fare for this trip. '
+                            'You can adjust the trip details or try again.',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () => ref
+                                  .read(fareEstimateProvider.notifier)
+                                  .estimate(form),
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    _TotalCard(
-                      subtotal: fareState.breakdown!.subtotal,
-                      promoDiscount: fareState.promoDiscount,
-                      baseDiscount: fareState.breakdown!.discount,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        final breakdown = fareState.breakdown!;
-                        final totalAmount = (breakdown.totalAmount - fareState.promoDiscount)
-                            .clamp(0, double.infinity)
-                            .toInt();
-                        context.push(
-                          '/booking/${form.vehicleId}/form/${form.bookingType}/review/confirm',
-                          extra: {
-                            'form': form,
-                            'breakdown': breakdown,
-                            'promoCodeId': fareState.promoCodeId,
-                            'totalAmount': totalAmount,
-                          },
-                        );
-                      },
-                      child: const Text('Confirm Booking'),
-                    ),
-                  ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                ElevatedButton(
+                  onPressed: canConfirm
+                      ? () {
+                          final breakdown = fareState.breakdown!;
+                          final totalAmount =
+                              (breakdown.totalAmount - fareState.promoDiscount)
+                                  .clamp(0, double.infinity)
+                                  .toInt();
+                          context.push(
+                            '/booking/${form.vehicleId}/form/${form.bookingType}/review/confirm',
+                            extra: {
+                              'form': form,
+                              'breakdown': breakdown,
+                              'appliedFareRuleId': fareState.appliedFareRuleId,
+                              'promoCodeId': fareState.promoCodeId,
+                              'totalAmount': totalAmount,
+                            },
+                          );
+                        }
+                      : null,
+                  child: const Text('Confirm Booking'),
                 ),
+                if (!canConfirm && hasFareError) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'You can’t confirm this booking until the fare issue is resolved.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorBanner({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.error.withOpacity(0.04),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: onRetry,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Try again',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

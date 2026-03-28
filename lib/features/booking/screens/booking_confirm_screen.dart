@@ -38,6 +38,7 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
   Widget build(BuildContext context) {
     final form = ref.watch(bookingFormProvider);
     final breakdown = widget.args['breakdown'] as FareBreakdown?;
+    final appliedFareRuleId = widget.args['appliedFareRuleId'] as String?;
     final promoCodeId = widget.args['promoCodeId'] as String?;
     final totalAmount = widget.args['totalAmount'] as int? ?? 0;
 
@@ -105,7 +106,14 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
           ElevatedButton(
             onPressed: _isSubmitting
                 ? null
-                : () => _submitBooking(context, form, breakdown, promoCodeId, totalAmount),
+                : () => _submitBooking(
+                      context,
+                      form,
+                      breakdown,
+                      appliedFareRuleId,
+                      promoCodeId,
+                      totalAmount,
+                    ),
             child: _isSubmitting
                 ? const SizedBox(
                     height: 20,
@@ -123,6 +131,7 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
     BuildContext context,
     BookingFormState form,
     FareBreakdown? breakdown,
+    String? appliedFareRuleId,
     String? promoCodeId,
     int totalAmount,
   ) async {
@@ -137,7 +146,16 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
         'type': form.bookingType,
         'vehicleId': form.vehicleId,
         'pickupAddress': form.pickupAddress,
+        if (form.pickupLocationId != null) ...{
+          // Backward/forward compatible keys: the backend plan uses *UpazilaId.
+          'pickupLocationId': form.pickupLocationId,
+          'pickupUpazilaId': form.pickupLocationId,
+        },
         if (form.dropoffAddress.isNotEmpty) 'dropoffAddress': form.dropoffAddress,
+        if (form.dropoffLocationId != null) ...{
+          'dropoffLocationId': form.dropoffLocationId,
+          'dropoffUpazilaId': form.dropoffLocationId,
+        },
         'scheduledPickup': form.scheduledPickup?.toIso8601String(),
         if (form.scheduledDropoff != null)
           'scheduledDropoff': form.scheduledDropoff!.toIso8601String(),
@@ -153,6 +171,7 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
             : 0,
         'discount': breakdown?.discount ?? 0,
         'totalAmount': totalAmount,
+        if (appliedFareRuleId != null) 'appliedFareRuleId': appliedFareRuleId,
         if (promoCodeId != null) 'promoCodeId': promoCodeId,
         'paymentMethod': _paymentMethod,
       });
