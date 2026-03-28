@@ -83,7 +83,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
                             controller: _phoneController,
                             decoration: const InputDecoration(
                               labelText: 'Phone Number',
-                              hintText: '01XXXXXXXXX',
+                              hintText: '1XXXXXXXXX',
                             ),
                             initialCountryCode: 'BD',
                             onChanged: (phone) {

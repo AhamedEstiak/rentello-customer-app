@@ -80,6 +80,13 @@ class AuthNotifier extends Notifier<AuthState> {
     );
   }
 
+  /// Used by the Dio 401 interceptor: rotate tokens and update state, then retry the request.
+  Future<bool> refreshSessionFromStorage() async {
+    final refresh = await _storage.read(key: AuthStorageKeys.refreshToken);
+    if (refresh == null) return false;
+    return _tryRefresh(refresh);
+  }
+
   /// Returns true if session was restored from the refresh response.
   Future<bool> _tryRefresh(String refreshToken) async {
     try {

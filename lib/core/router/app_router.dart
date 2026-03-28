@@ -32,6 +32,8 @@ class RouterNotifier extends ChangeNotifier {
     });
     // On 401, API client clears token and calls this; we logout so redirect runs.
     onUnauthorized = () => _ref.read(authProvider.notifier).logout();
+    onRefreshSession =
+        () => _ref.read(authProvider.notifier).refreshSessionFromStorage();
   }
 
   String? redirect(BuildContext context, GoRouterState state) {

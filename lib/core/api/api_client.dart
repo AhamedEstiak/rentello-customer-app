@@ -13,9 +13,12 @@ const _baseUrl = String.fromEnvironment(
 
 const _storage = FlutterSecureStorage();
 
-/// Optional callback when a 401 response is received. Set from app bootstrap
-/// (e.g. [registerUnauthorizedCallback]) to clear session and redirect to login.
+/// Optional callback when a 401 response is received after refresh fails or is skipped.
 void Function()? onUnauthorized;
+
+/// Optional: attempt refresh (read refresh token, POST [ApiEndpoints.authRefresh], persist tokens).
+/// Return `true` if a new access token was stored so the failed request can be retried.
+Future<bool> Function()? onRefreshSession;
 
 /// Set on [RequestOptions.extra] to skip attaching the Bearer access token
 /// (e.g. [ApiEndpoints.authRefresh] uses body `refreshToken` instead).
@@ -89,16 +92,67 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
-          final path = error.requestOptions.path;
-          if (path.endsWith(ApiEndpoints.authRefresh)) {
-            handler.next(error);
-            return;
-          }
+        if (error.response?.statusCode != 401) {
+          handler.next(error);
+          return;
+        }
+
+        final opts = error.requestOptions;
+        final path = opts.path;
+
+        if (path.endsWith(ApiEndpoints.authRefresh) ||
+            path.endsWith(ApiEndpoints.sendOtp) ||
+            path.endsWith(ApiEndpoints.verifyOtp)) {
           await clearAuthStorage(_storage);
           onUnauthorized?.call();
+          handler.next(error);
+          return;
         }
-        handler.next(error);
+
+        final authHeader = opts.headers['Authorization'];
+        if (authHeader == null ||
+            authHeader is! String ||
+            !authHeader.startsWith('Bearer ')) {
+          handler.next(error);
+          return;
+        }
+
+        if (opts.extra['retried'] == true) {
+          await clearAuthStorage(_storage);
+          onUnauthorized?.call();
+          handler.next(error);
+          return;
+        }
+
+        final refreshed = await onRefreshSession?.call() ?? false;
+        if (!refreshed) {
+          await clearAuthStorage(_storage);
+          onUnauthorized?.call();
+          handler.next(error);
+          return;
+        }
+
+        final token = await _storage.read(key: AuthStorageKeys.accessToken);
+        if (token == null) {
+          await clearAuthStorage(_storage);
+          onUnauthorized?.call();
+          handler.next(error);
+          return;
+        }
+
+        opts.headers['Authorization'] = 'Bearer $token';
+        opts.extra['retried'] = true;
+
+        try {
+          final response = await dio.fetch(opts);
+          handler.resolve(response);
+        } catch (e) {
+          if (e is DioException) {
+            handler.next(e);
+          } else {
+            handler.next(error);
+          }
+        }
       },
     ),
   );
