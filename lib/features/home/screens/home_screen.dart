@@ -9,7 +9,8 @@ import '../../../core/models/locations.dart';
 import '../../../core/models/vehicle.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../booking/providers/booking_form_provider.dart';
-import '../../booking/widgets/district_upazila_selector_sheet.dart';
+import '../../booking/widgets/location_selector_sheet.dart';
+import '../providers/vehicle_category_order_provider.dart';
 import '../providers/vehicle_provider.dart';
 import '../widgets/plan_trip/plan_trip_continue_button.dart';
 import '../widgets/plan_trip/plan_trip_datetime_tile.dart';
@@ -30,13 +31,16 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const _bookingType = 'INTERCITY';
 
-  static const _vehicles = [
-    VehicleType(label: 'Sedan', emoji: '🚗', categoryCode: 'SEDAN'),
-    VehicleType(label: 'SUV', emoji: '🚙', categoryCode: 'SUV'),
-    VehicleType(label: 'Microbus', emoji: '🚌', categoryCode: 'MICROBUS'),
-    VehicleType(label: 'Hi-Ace', emoji: '🚐', categoryCode: 'PREMIUM'),
-  ];
+  /// Display metadata for each known category code (label fallback when server has no extras).
+  static const _categoryMeta = <String, (String label, String emoji)>{
+    'SEDAN': ('Sedan', '🚗'),
+    'SUV': ('SUV', '🚙'),
+    'MICROBUS': ('Microbus', '🚌'),
+    'PREMIUM': ('Hi-Ace', '🚐'),
+    'HIACE': ('Hiace', '🚐'),
+  };
 
+  List<VehicleType> _vehicleTypes = const [];
   int _selectedVehicleIndex = 0;
   DateTime _pickupDate = DateTime.now();
   TimeOfDay _pickupTime = TimeOfDay.now();
@@ -61,10 +65,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  List<VehicleType> _deriveVehicleTypes(
+    List<Vehicle> vehicles,
+    List<String> categoryOrder,
+  ) {
+    final available = vehicles.map((v) => v.category).toSet();
+    return categoryOrder
+        .where(available.contains)
+        .map((code) {
+          final meta = _categoryMeta[code] ?? ('$code', '🚗');
+          return VehicleType(label: meta.$1, emoji: meta.$2, categoryCode: code);
+        })
+        .toList();
+  }
+
   IntercityRoute? _matchRoute(List<IntercityRoute> routes) {
     if (_pickup == null || _dropoff == null) return null;
-    final pu = _pickup!.upazilaId;
-    final du = _dropoff!.upazilaId;
+    final pu = _pickup!.locationId;
+    final du = _dropoff!.locationId;
     for (final r in routes) {
       final o = r.originUpazilaId;
       final d = r.destinationUpazilaId;
@@ -106,8 +124,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       bookingType: _bookingType,
       pickupAddress: _pickup?.label ?? '',
       dropoffAddress: _dropoff?.label ?? '',
-      pickupLocationId: _pickup?.upazilaId,
-      dropoffLocationId: _dropoff?.upazilaId,
+      pickupLocationId: _pickup?.locationId,
+      dropoffLocationId: _dropoff?.locationId,
       scheduledPickup: pickupDt,
       scheduledDropoff: null,
       totalHours: hours,
@@ -138,7 +156,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final vehicles =
         ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
-    final category = _vehicles[_selectedVehicleIndex].categoryCode;
+    if (_vehicleTypes.isEmpty) return;
+    final category = _vehicleTypes[_selectedVehicleIndex].categoryCode;
     final vid = _vehicleIdForCategory(vehicles, category);
     ref
         .read(bookingFormProvider.notifier)
@@ -152,8 +171,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String? vehicleId,
   }) {
     if (vehicleId == null || vehicleId.isEmpty) return false;
-    if (_pickup == null || _pickup!.upazilaId.isEmpty) return false;
-    if (_dropoff == null || _dropoff!.upazilaId.isEmpty) return false;
+    if (_pickup == null || _pickup!.locationId.isEmpty) return false;
+    if (_dropoff == null || _dropoff!.locationId.isEmpty) return false;
     if (matchedRoute == null) return false;
     return true;
   }
@@ -164,7 +183,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final vehicles =
         ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
-    final category = _vehicles[_selectedVehicleIndex].categoryCode;
+    if (_vehicleTypes.isEmpty) {
+      ref.invalidate(fareEstimateProvider);
+      return;
+    }
+    final category = _vehicleTypes[_selectedVehicleIndex].categoryCode;
     final vid = _vehicleIdForCategory(vehicles, category);
 
     if (!_canEstimateFare(matchedRoute: matched, vehicleId: vid)) {
@@ -191,10 +214,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DistrictUpazilaSelectorSheet(
-        initialSelection: _pickup,
-        forPickup: true,
-      ),
+      builder: (_) =>
+          LocationSelectorSheet(initialSelection: _pickup, forPickup: true),
     );
     if (!mounted || selection == null) return;
     setState(() => _pickup = selection);
@@ -206,10 +227,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DistrictUpazilaSelectorSheet(
-        initialSelection: _dropoff,
-        forPickup: false,
-      ),
+      builder: (_) =>
+          LocationSelectorSheet(initialSelection: _dropoff, forPickup: false),
     );
     if (!mounted || selection == null) return;
     setState(() => _dropoff = selection);
@@ -233,8 +252,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final vehicles =
         ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
-    final category = _vehicles[_selectedVehicleIndex].categoryCode;
-    final vid = _vehicleIdForCategory(vehicles, category);
+    final selectedType =
+        _vehicleTypes.isNotEmpty ? _vehicleTypes[_selectedVehicleIndex] : null;
+    final vid =
+        selectedType != null
+            ? _vehicleIdForCategory(vehicles, selectedType.categoryCode)
+            : null;
 
     if (!_canEstimateFare(matchedRoute: matched, vehicleId: vid)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -243,8 +266,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             matched == null
                 ? 'No intercity route matches this pickup and destination. '
                       'Choose locations that appear on a published route.'
-                : 'Could not resolve a vehicle for ${_vehicles[_selectedVehicleIndex].label}. '
-                      'Try another type or wait for vehicles to load.',
+                : selectedType != null
+                ? 'Could not resolve a vehicle for ${selectedType.label}. '
+                      'Try another type or wait for vehicles to load.'
+                : 'No vehicle types available. Please try again later.',
           ),
         ),
       );
@@ -326,6 +351,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       next,
     ) {
       if (next.hasValue) {
+        final order =
+            ref.read(vehicleCategoryOrderProvider).asData?.value ??
+            kDefaultVehicleCategoryOrder;
+        final types = _deriveVehicleTypes(next.value!, order);
+        setState(() {
+          _vehicleTypes = types;
+          if (types.isNotEmpty && _selectedVehicleIndex >= types.length) {
+            _selectedVehicleIndex = 0;
+          }
+        });
+        _syncBookingFormProvider();
+        _maybeUpdateFareEstimate();
+      }
+    });
+
+    ref.listen<AsyncValue<List<String>>>(vehicleCategoryOrderProvider, (
+      prev,
+      next,
+    ) {
+      if (next.hasValue) {
+        final vehicles =
+            ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
+        if (vehicles.isEmpty) return;
+        final types = _deriveVehicleTypes(vehicles, next.value!);
+        setState(() {
+          _vehicleTypes = types;
+          if (types.isNotEmpty && _selectedVehicleIndex >= types.length) {
+            _selectedVehicleIndex = 0;
+          }
+        });
         _syncBookingFormProvider();
         _maybeUpdateFareEstimate();
       }
@@ -333,13 +388,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final routesAsync = ref.watch(intercityRoutesProvider);
     final vehiclesAsync = ref.watch(vehicleListProvider('ALL'));
+    ref.watch(vehicleCategoryOrderProvider);
     final fareState = ref.watch(fareEstimateProvider);
 
     final routes = routesAsync.asData?.value ?? <IntercityRoute>[];
     final vehicles = vehiclesAsync.asData?.value ?? <Vehicle>[];
+
+    // Keep _vehicleTypes in sync with the latest server data.
+    if (vehicles.isNotEmpty && _vehicleTypes.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final order =
+            ref.read(vehicleCategoryOrderProvider).asData?.value ??
+            kDefaultVehicleCategoryOrder;
+        final types = _deriveVehicleTypes(vehicles, order);
+        setState(() {
+          _vehicleTypes = types;
+          if (types.isNotEmpty && _selectedVehicleIndex >= types.length) {
+            _selectedVehicleIndex = 0;
+          }
+        });
+        _syncBookingFormProvider();
+        _maybeUpdateFareEstimate();
+      });
+    }
+
     final matched = _matchRoute(routes);
-    final category = _vehicles[_selectedVehicleIndex].categoryCode;
-    final vehicleId = _vehicleIdForCategory(vehicles, category);
+    final selectedType =
+        _vehicleTypes.isNotEmpty ? _vehicleTypes[_selectedVehicleIndex] : null;
+    final vehicleId =
+        selectedType != null
+            ? _vehicleIdForCategory(vehicles, selectedType.categoryCode)
+            : null;
 
     final bd = fareState.breakdown;
     final canShowNumbers =
@@ -412,10 +492,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            const PlanTripSectionLabel('VEHICLE TYPE'),
+            // const PlanTripSectionLabel('VEHICLE TYPE'),
             const SizedBox(height: 12),
             PlanTripVehicleSelector(
-              vehicles: _vehicles,
+              vehicles: _vehicleTypes,
               selectedIndex: _selectedVehicleIndex,
               onSelected: (i) {
                 setState(() => _selectedVehicleIndex = i);

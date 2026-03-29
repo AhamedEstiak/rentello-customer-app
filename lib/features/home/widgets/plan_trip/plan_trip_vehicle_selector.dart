@@ -17,6 +17,46 @@ class PlanTripVehicleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (vehicles.isEmpty) {
+      return Row(
+        children: List.generate(4, (i) {
+          return Expanded(
+            child: Container(
+              margin: EdgeInsets.only(right: i < 3 ? 10 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 36,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      );
+    }
+
     return Row(
       children: List.generate(vehicles.length, (i) {
         final selected = selectedIndex == i;

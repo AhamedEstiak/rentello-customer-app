@@ -35,13 +35,16 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
   String? _dropoffLocationId;
 
   bool get _requiresDropoff =>
-      widget.bookingType != 'INTERCITY' && widget.bookingType != 'AIRPORT_TRANSFER';
+      widget.bookingType != 'INTERCITY' &&
+      widget.bookingType != 'AIRPORT_TRANSFER';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(bookingFormProvider.notifier).init(widget.vehicleId, widget.bookingType);
+      ref
+          .read(bookingFormProvider.notifier)
+          .init(widget.vehicleId, widget.bookingType);
     });
   }
 
@@ -79,7 +82,7 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     if (!mounted || selection == null) return;
 
     setState(() {
-      _pickupLocationId = selection.upazilaId;
+      _pickupLocationId = selection.locationId;
       _pickupCtrl.text = selection.label;
     });
   }
@@ -88,13 +91,14 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const DistrictUpazilaSelectorSheet(forPickup: false),
+      builder: (context) =>
+          const DistrictUpazilaSelectorSheet(forPickup: false),
     );
 
     if (!mounted || selection == null) return;
 
     setState(() {
-      _dropoffLocationId = selection.upazilaId;
+      _dropoffLocationId = selection.locationId;
       _dropoffCtrl.text = selection.label;
     });
   }
@@ -106,10 +110,8 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
       initialDate: now,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
-      builder: (context, child) => Theme(
-        data: AppTheme.pickerDialogTheme,
-        child: child!,
-      ),
+      builder: (context, child) =>
+          Theme(data: AppTheme.pickerDialogTheme, child: child!),
     );
     if (date == null) return;
 
@@ -117,14 +119,18 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      builder: (context, child) => Theme(
-        data: AppTheme.pickerDialogTheme,
-        child: child!,
-      ),
+      builder: (context, child) =>
+          Theme(data: AppTheme.pickerDialogTheme, child: child!),
     );
     if (time == null) return;
 
-    final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final dt = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     setState(() {
       if (isPickup) {
         _pickupDate = dt;
@@ -160,7 +166,11 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
             ),
             const SizedBox(height: 16),
             if (widget.bookingType != 'INTERCITY') ...[
-              _SectionLabel(_requiresDropoff ? 'Drop-off Location' : 'Drop-off Location (optional)'),
+              _SectionLabel(
+                _requiresDropoff
+                    ? 'Drop-off Location'
+                    : 'Drop-off Location (optional)',
+              ),
               TextFormField(
                 controller: _dropoffCtrl,
                 readOnly: true,
@@ -187,7 +197,10 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
             if (_pickupDate == null)
               const Padding(
                 padding: EdgeInsets.only(left: 12, top: 4),
-                child: Text('Required', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                child: Text(
+                  'Required',
+                  style: TextStyle(color: AppColors.error, fontSize: 12),
+                ),
               ),
             const SizedBox(height: 16),
             if (widget.bookingType == 'HOURLY') ...[
@@ -206,7 +219,10 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -269,12 +285,15 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
                             value: _selectedRouteId,
                             hint: const Text('Choose origin → destination'),
                             decoration: const InputDecoration(),
-                            validator: (v) => v == null ? 'Please select a route' : null,
-                                    items: routes
-                                .map((r) => DropdownMenuItem(
-                                      value: r.id,
-                                      child: Text(r.displayName),
-                                    ))
+                            validator: (v) =>
+                                v == null ? 'Please select a route' : null,
+                            items: routes
+                                .map(
+                                  (r) => DropdownMenuItem(
+                                    value: r.id,
+                                    child: Text(r.displayName),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (v) {
                               if (v == null) return;
@@ -288,7 +307,8 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
                               setState(() {
                                 _selectedRouteId = v;
                                 _dropoffLocationId =
-                                    (selected as dynamic).destinationUpazilaId as String?;
+                                    (selected as dynamic).destinationUpazilaId
+                                        as String?;
                               });
                             },
                           ),
@@ -343,7 +363,8 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
       flightNumber: _flightCtrl.text.trim(),
       airportCode: _airportCtrl.text.trim(),
       routeId: _selectedRouteId,
-      isNight: _pickupDate != null &&
+      isNight:
+          _pickupDate != null &&
           (_pickupDate!.hour >= 22 || _pickupDate!.hour < 6),
     );
 
@@ -409,7 +430,9 @@ class _DatePickerTile extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: hasValue ? AppColors.textPrimary : AppColors.textSecondary,
+                color: hasValue
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
                 fontSize: 15,
               ),
             ),

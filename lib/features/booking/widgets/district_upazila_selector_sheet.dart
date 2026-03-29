@@ -31,7 +31,7 @@ class _DistrictUpazilaSelectorSheetState
   @override
   void initState() {
     super.initState();
-    _selectedDistrictId = widget.initialSelection?.districtId;
+    _selectedDistrictId = widget.initialSelection?.locationId;
     if (widget.initialSelection != null) {
       _districtQueryCtrl.text = '';
       _upazilaQueryCtrl.text = '';
@@ -58,8 +58,11 @@ class _DistrictUpazilaSelectorSheetState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: AppColors.error),
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppColors.error,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'Failed to load locations',
@@ -75,8 +78,10 @@ class _DistrictUpazilaSelectorSheetState
             final filteredDistricts = districtQuery.isEmpty
                 ? districts
                 : districts
-                    .where((d) => d.name.toLowerCase().contains(districtQuery))
-                    .toList();
+                      .where(
+                        (d) => d.name.toLowerCase().contains(districtQuery),
+                      )
+                      .toList();
 
             DistrictLocation? selectedDistrict;
             if (_selectedDistrictId != null) {
@@ -108,8 +113,7 @@ class _DistrictUpazilaSelectorSheetState
                         ? Center(
                             child: Text(
                               'No districts found',
-                              style:
-                                  TextStyle(color: AppColors.textSecondary),
+                              style: TextStyle(color: AppColors.textSecondary),
                             ),
                           )
                         : ListView.builder(
@@ -158,15 +162,18 @@ class _DistrictUpazilaSelectorSheetState
                           if (sd == null) {
                             return const SizedBox.shrink();
                           }
-                          final upazilaQuery =
-                              _upazilaQueryCtrl.text.trim().toLowerCase();
+                          final upazilaQuery = _upazilaQueryCtrl.text
+                              .trim()
+                              .toLowerCase();
                           final filteredUpazilas = upazilaQuery.isEmpty
                               ? sd.upazilas
                               : sd.upazilas
-                                  .where((u) => u.name
-                                      .toLowerCase()
-                                      .contains(upazilaQuery))
-                                  .toList();
+                                    .where(
+                                      (u) => u.name.toLowerCase().contains(
+                                        upazilaQuery,
+                                      ),
+                                    )
+                                    .toList();
 
                           if (filteredUpazilas.isEmpty) {
                             return Center(
@@ -190,10 +197,8 @@ class _DistrictUpazilaSelectorSheetState
                                   Navigator.pop(
                                     context,
                                     LocationSelection(
-                                      districtId: sd.id,
-                                      upazilaId: u.id,
-                                      label:
-                                          '${sd.name}, ${u.name}',
+                                      locationId: u.id,
+                                      label: '${sd.name}, ${u.name}',
                                     ),
                                   );
                                 },
@@ -213,7 +218,7 @@ class _DistrictUpazilaSelectorSheetState
                         ),
                       ),
                     ),
-                  ]
+                  ],
                 ],
               ),
             );
@@ -223,4 +228,3 @@ class _DistrictUpazilaSelectorSheetState
     );
   }
 }
-

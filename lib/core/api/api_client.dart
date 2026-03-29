@@ -204,6 +204,7 @@ class ApiEndpoints {
   /// extra Flutter calls to this constant.
   static const me = '/auth/me';
   static const vehicles = '/vehicles';
+  static const vehicleCategories = '/vehicle-categories';
   static const routes = '/routes';
   static const bookings = '/bookings';
   static const locations = '/locations';
