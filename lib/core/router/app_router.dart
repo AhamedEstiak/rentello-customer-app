@@ -40,7 +40,11 @@ class RouterNotifier extends ChangeNotifier {
     final loc = state.matchedLocation;
 
     if (_authState.isLoading) {
-      return loc == '/splash' ? null : '/splash';
+      // Initial hydrate uses /splash. sendOtp/verifyOtp also set isLoading; forcing
+      // /splash from /login or /otp would leave the stack on splash and then /login.
+      final stayOnAuthFlow =
+          loc == '/splash' || loc == '/login' || loc == '/otp';
+      return stayOnAuthFlow ? null : '/splash';
     }
 
     final isAuthenticated = _authState.isAuthenticated;

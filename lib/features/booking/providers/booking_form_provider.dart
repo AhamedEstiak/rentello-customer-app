@@ -20,6 +20,8 @@ class BookingFormState {
   final String airportCode;
   final String? routeId;
   final bool isNight;
+  /// From matched [IntercityRoute] when booking intercity from home; sent to fare/booking APIs.
+  final double? distanceKm;
 
   const BookingFormState({
     this.vehicleId = '',
@@ -35,6 +37,7 @@ class BookingFormState {
     this.airportCode = '',
     this.routeId,
     this.isNight = false,
+    this.distanceKm,
   });
 
   BookingFormState copyWith({
@@ -51,7 +54,9 @@ class BookingFormState {
     String? airportCode,
     String? routeId,
     bool? isNight,
+    double? distanceKm,
     bool clearRoute = false,
+    bool clearDistanceKm = false,
   }) =>
       BookingFormState(
         vehicleId: vehicleId ?? this.vehicleId,
@@ -67,6 +72,7 @@ class BookingFormState {
         airportCode: airportCode ?? this.airportCode,
         routeId: clearRoute ? null : routeId ?? this.routeId,
         isNight: isNight ?? this.isNight,
+        distanceKm: clearDistanceKm ? null : distanceKm ?? this.distanceKm,
       );
 }
 
@@ -204,6 +210,9 @@ class FareEstimateNotifier extends Notifier<FareEstimateState> {
         'bookingType': form.bookingType,
         'totalHours': form.totalHours,
         'isNight': form.isNight,
+        if (form.scheduledPickup != null)
+          'scheduledPickup': form.scheduledPickup!.toIso8601String(),
+        if (form.distanceKm != null) 'distanceKm': form.distanceKm,
         if (form.pickupLocationId != null) ...{
           // Backward/forward compatible keys: the backend plan uses *UpazilaId.
           'pickupLocationId': form.pickupLocationId,

@@ -113,6 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       totalHours: hours,
       routeId: matchedRoute?.id,
       isNight: pickupDt.hour >= 22 || pickupDt.hour < 6,
+      distanceKm: matchedRoute?.distanceKm,
     );
   }
 
@@ -127,6 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       form.isNight.toString(),
       form.routeId ?? '',
       pickupIso,
+      form.distanceKm?.toStringAsFixed(4) ?? '',
     ].join('|');
   }
 
@@ -189,7 +191,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DistrictUpazilaSelectorSheet(initialSelection: _pickup),
+      builder: (_) => DistrictUpazilaSelectorSheet(
+        initialSelection: _pickup,
+        forPickup: true,
+      ),
     );
     if (!mounted || selection == null) return;
     setState(() => _pickup = selection);
@@ -201,7 +206,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => DistrictUpazilaSelectorSheet(initialSelection: _dropoff),
+      builder: (_) => DistrictUpazilaSelectorSheet(
+        initialSelection: _dropoff,
+        forPickup: false,
+      ),
     );
     if (!mounted || selection == null) return;
     setState(() => _dropoff = selection);

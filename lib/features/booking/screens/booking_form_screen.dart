@@ -73,7 +73,7 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const DistrictUpazilaSelectorSheet(),
+      builder: (context) => const DistrictUpazilaSelectorSheet(forPickup: true),
     );
 
     if (!mounted || selection == null) return;
@@ -88,7 +88,7 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     final selection = await showModalBottomSheet<LocationSelection>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const DistrictUpazilaSelectorSheet(),
+      builder: (context) => const DistrictUpazilaSelectorSheet(forPickup: false),
     );
 
     if (!mounted || selection == null) return;

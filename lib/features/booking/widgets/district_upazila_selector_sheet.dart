@@ -7,7 +7,14 @@ import '../../../core/theme/app_theme.dart';
 class DistrictUpazilaSelectorSheet extends ConsumerStatefulWidget {
   final LocationSelection? initialSelection;
 
-  const DistrictUpazilaSelectorSheet({super.key, this.initialSelection});
+  /// When true, loads pickup-eligible districts; when false, destination-eligible.
+  final bool forPickup;
+
+  const DistrictUpazilaSelectorSheet({
+    super.key,
+    this.initialSelection,
+    required this.forPickup,
+  });
 
   @override
   ConsumerState<DistrictUpazilaSelectorSheet> createState() =>
@@ -40,7 +47,7 @@ class _DistrictUpazilaSelectorSheetState
 
   @override
   Widget build(BuildContext context) {
-    final locationsAsync = ref.watch(locationsProvider);
+    final locationsAsync = ref.watch(locationsProvider(widget.forPickup));
 
     return SafeArea(
       child: SizedBox(

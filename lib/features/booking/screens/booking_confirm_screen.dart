@@ -163,6 +163,7 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
         if (form.flightNumber.isNotEmpty) 'flightNumber': form.flightNumber,
         if (form.airportCode.isNotEmpty) 'airportCode': form.airportCode,
         if (form.routeId != null) 'routeId': form.routeId,
+        if (form.distanceKm != null) 'distanceKm': form.distanceKm,
         'baseFare': breakdown?.baseFare ?? 0,
         'surcharges': (breakdown != null)
             ? breakdown.nightSurcharge +
@@ -178,6 +179,7 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
 
       final booking = Booking.fromJson(res.data['booking'] as Map<String, dynamic>);
       if (!context.mounted) return;
+      setState(() => _isSubmitting = false);
       _showSuccessDialog(context, booking);
     } on DioException catch (e) {
       setState(() {
@@ -236,9 +238,9 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              context.go('/bookings');
+              context.go('/bookings/${booking.id}');
             },
-            child: const Text('View Bookings'),
+            child: const Text('View booking'),
           ),
         ],
       ),
