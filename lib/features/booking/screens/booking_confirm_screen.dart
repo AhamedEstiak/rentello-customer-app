@@ -21,9 +21,7 @@ class _PaymentOption {
 }
 
 class BookingConfirmScreen extends ConsumerStatefulWidget {
-  final Map<String, dynamic> args;
-
-  const BookingConfirmScreen({super.key, required this.args});
+  const BookingConfirmScreen({super.key});
 
   @override
   ConsumerState<BookingConfirmScreen> createState() => _BookingConfirmScreenState();
@@ -37,17 +35,14 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final form = ref.watch(bookingFormProvider);
-    final breakdown = widget.args['breakdown'] as FareBreakdown?;
-    final appliedFareRuleId = widget.args['appliedFareRuleId'] as String?;
-    final promoCodeId = widget.args['promoCodeId'] as String?;
-    final totalAmount = widget.args['totalAmount'] as int? ?? 0;
+    final fare = ref.watch(fareEstimateProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Confirm Booking')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _SummarySection(form: form, totalAmount: totalAmount),
+          _SummarySection(form: form, fare: fare),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -109,10 +104,6 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
                 : () => _submitBooking(
                       context,
                       form,
-                      breakdown,
-                      appliedFareRuleId,
-                      promoCodeId,
-                      totalAmount,
                     ),
             child: _isSubmitting
                 ? const SizedBox(
@@ -130,10 +121,6 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
   Future<void> _submitBooking(
     BuildContext context,
     BookingFormState form,
-    FareBreakdown? breakdown,
-    String? appliedFareRuleId,
-    String? promoCodeId,
-    int totalAmount,
   ) async {
     setState(() {
       _isSubmitting = true;
@@ -144,7 +131,6 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
       final dio = ref.read(dioProvider);
       final res = await dio.post(ApiEndpoints.bookings, data: {
         'type': form.bookingType,
-        'vehicleId': form.vehicleId,
         'pickupAddress': form.pickupAddress,
         if (form.pickupLocationId != null) ...{
           // Backward/forward compatible keys: the backend plan uses *UpazilaId.
@@ -163,17 +149,9 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
         if (form.flightNumber.isNotEmpty) 'flightNumber': form.flightNumber,
         if (form.airportCode.isNotEmpty) 'airportCode': form.airportCode,
         if (form.routeId != null) 'routeId': form.routeId,
+        if (form.vehicleCategory != null && form.vehicleCategory!.isNotEmpty)
+          'vehicleCategory': form.vehicleCategory,
         if (form.distanceKm != null) 'distanceKm': form.distanceKm,
-        'baseFare': breakdown?.baseFare ?? 0,
-        'surcharges': (breakdown != null)
-            ? breakdown.nightSurcharge +
-                breakdown.airportSurcharge +
-                breakdown.intercitySurcharge
-            : 0,
-        'discount': breakdown?.discount ?? 0,
-        'totalAmount': totalAmount,
-        if (appliedFareRuleId != null) 'appliedFareRuleId': appliedFareRuleId,
-        if (promoCodeId != null) 'promoCodeId': promoCodeId,
         'paymentMethod': _paymentMethod,
       });
 
@@ -227,6 +205,28 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            Text(
+              'Total: ৳${booking.totalAmount.toStringAsFixed(0)}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+            if (booking.price != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Base: ৳${booking.price!.baseFare.toStringAsFixed(0)}  '
+                'Surcharge: ৳${booking.price!.surcharges.toStringAsFixed(0)}  '
+                'Discount: ৳${booking.price!.discount.toStringAsFixed(0)}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
             const Text(
               'Your booking is pending confirmation. You\'ll be notified once approved.',
               textAlign: TextAlign.center,
@@ -250,12 +250,14 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
 
 class _SummarySection extends StatelessWidget {
   final BookingFormState form;
-  final int totalAmount;
+  final FareEstimateState fare;
 
-  const _SummarySection({required this.form, required this.totalAmount});
+  const _SummarySection({required this.form, required this.fare});
 
   @override
   Widget build(BuildContext context) {
+    final breakdown = fare.breakdown;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -270,24 +272,21 @@ class _SummarySection extends StatelessWidget {
             _Row('Type', form.bookingType.replaceAll('_', ' ')),
             _Row('Pickup', form.pickupAddress.isEmpty ? '-' : form.pickupAddress),
             if (form.dropoffAddress.isNotEmpty) _Row('Drop-off', form.dropoffAddress),
-            const Divider(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total Amount',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-                Text(
-                  '৳$totalAmount',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
+            if (breakdown != null) ...[
+              const Divider(height: 20),
+              _Row('Estimated fare', '৳${breakdown.totalAmount}'),
+              if (breakdown.baseFare != breakdown.totalAmount)
+                _Row('Base fare', '৳${breakdown.baseFare}'),
+              if (breakdown.discount > 0)
+                _Row('Discount', '-৳${breakdown.discount}'),
+            ],
+            if (breakdown == null) ...[
+              const Divider(height: 20),
+              const Text(
+                'Final fare will be calculated when you place the booking.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ],
           ],
         ),
       ),

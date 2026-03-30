@@ -1,25 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/models/booking.dart';
 import '../../../core/models/locations.dart';
-import '../../../core/models/vehicle.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../booking/providers/booking_form_provider.dart';
 import '../../booking/widgets/location_selector_sheet.dart';
-import '../providers/vehicle_category_order_provider.dart';
-import '../providers/vehicle_provider.dart';
 import '../widgets/plan_trip/plan_trip_continue_button.dart';
 import '../widgets/plan_trip/plan_trip_datetime_tile.dart';
-import '../widgets/plan_trip/plan_trip_fare_estimate.dart';
 import '../widgets/plan_trip/plan_trip_header.dart';
 import '../widgets/plan_trip/plan_trip_location_card.dart';
-import '../widgets/plan_trip/plan_trip_models.dart';
 import '../widgets/plan_trip/plan_trip_swap_row.dart';
-import '../widgets/plan_trip/plan_trip_vehicle_selector.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -31,25 +23,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const _bookingType = 'INTERCITY';
 
-  /// Display metadata for each known category code (label fallback when server has no extras).
-  static const _categoryMeta = <String, (String label, String emoji)>{
-    'SEDAN': ('Sedan', '🚗'),
-    'SUV': ('SUV', '🚙'),
-    'MICROBUS': ('Microbus', '🚌'),
-    'PREMIUM': ('Hi-Ace', '🚐'),
-    'HIACE': ('Hiace', '🚐'),
-  };
-
-  List<VehicleType> _vehicleTypes = const [];
-  int _selectedVehicleIndex = 0;
   DateTime _pickupDate = DateTime.now();
   TimeOfDay _pickupTime = TimeOfDay.now();
 
   LocationSelection? _pickup;
   LocationSelection? _dropoff;
-
-  Timer? _fareDebounce;
-  String? _lastFareFingerprint;
 
   @override
   void initState() {
@@ -61,22 +39,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
-    _fareDebounce?.cancel();
     super.dispose();
-  }
-
-  List<VehicleType> _deriveVehicleTypes(
-    List<Vehicle> vehicles,
-    List<String> categoryOrder,
-  ) {
-    final available = vehicles.map((v) => v.category).toSet();
-    return categoryOrder
-        .where(available.contains)
-        .map((code) {
-          final meta = _categoryMeta[code] ?? ('$code', '🚗');
-          return VehicleType(label: meta.$1, emoji: meta.$2, categoryCode: code);
-        })
-        .toList();
   }
 
   IntercityRoute? _matchRoute(List<IntercityRoute> routes) {
@@ -93,13 +56,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
-  String? _vehicleIdForCategory(List<Vehicle> vehicles, String category) {
-    final list = vehicles.where((v) => v.category == category).toList();
-    if (list.isEmpty) return null;
-    list.sort((a, b) => a.seats.compareTo(b.seats));
-    return list.first.id;
-  }
-
   DateTime get _pickupDateTime {
     return DateTime(
       _pickupDate.year,
@@ -112,7 +68,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   BookingFormState _buildBookingFormState({
     required IntercityRoute? matchedRoute,
-    required String? vehicleId,
   }) {
     final pickupDt = _pickupDateTime;
     final hours = matchedRoute != null
@@ -120,7 +75,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : 2.0;
 
     return BookingFormState(
-      vehicleId: vehicleId ?? '',
       bookingType: _bookingType,
       pickupAddress: _pickup?.label ?? '',
       dropoffAddress: _dropoff?.label ?? '',
@@ -135,79 +89,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  String _fareFingerprint(BookingFormState form) {
-    final pickupIso = form.scheduledPickup?.toIso8601String() ?? '';
-    return [
-      form.vehicleId,
-      form.bookingType,
-      form.pickupLocationId ?? '',
-      form.dropoffLocationId ?? '',
-      form.totalHours.toStringAsFixed(2),
-      form.isNight.toString(),
-      form.routeId ?? '',
-      pickupIso,
-      form.distanceKm?.toStringAsFixed(4) ?? '',
-    ].join('|');
-  }
-
   void _syncBookingFormProvider() {
     final routes =
         ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
-    final vehicles =
-        ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
-    if (_vehicleTypes.isEmpty) return;
-    final category = _vehicleTypes[_selectedVehicleIndex].categoryCode;
-    final vid = _vehicleIdForCategory(vehicles, category);
     ref
         .read(bookingFormProvider.notifier)
-        .setState(
-          _buildBookingFormState(matchedRoute: matched, vehicleId: vid),
-        );
-  }
-
-  bool _canEstimateFare({
-    required IntercityRoute? matchedRoute,
-    required String? vehicleId,
-  }) {
-    if (vehicleId == null || vehicleId.isEmpty) return false;
-    if (_pickup == null || _pickup!.locationId.isEmpty) return false;
-    if (_dropoff == null || _dropoff!.locationId.isEmpty) return false;
-    if (matchedRoute == null) return false;
-    return true;
-  }
-
-  void _maybeUpdateFareEstimate() {
-    final routes =
-        ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
-    final vehicles =
-        ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
-    final matched = _matchRoute(routes);
-    if (_vehicleTypes.isEmpty) {
-      ref.invalidate(fareEstimateProvider);
-      return;
-    }
-    final category = _vehicleTypes[_selectedVehicleIndex].categoryCode;
-    final vid = _vehicleIdForCategory(vehicles, category);
-
-    if (!_canEstimateFare(matchedRoute: matched, vehicleId: vid)) {
-      _fareDebounce?.cancel();
-      _lastFareFingerprint = null;
-      ref.invalidate(fareEstimateProvider);
-      return;
-    }
-
-    final form = _buildBookingFormState(matchedRoute: matched, vehicleId: vid);
-    final fp = _fareFingerprint(form);
-    if (_lastFareFingerprint == fp) return;
-    _lastFareFingerprint = fp;
-
-    _fareDebounce?.cancel();
-    _fareDebounce = Timer(const Duration(milliseconds: 450), () {
-      if (!mounted) return;
-      ref.invalidate(fareEstimateProvider);
-      unawaited(ref.read(fareEstimateProvider.notifier).estimate(form));
-    });
+        .setState(_buildBookingFormState(matchedRoute: matched));
   }
 
   Future<void> _onPickupTap() async {
@@ -220,7 +108,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (!mounted || selection == null) return;
     setState(() => _pickup = selection);
     _syncBookingFormProvider();
-    _maybeUpdateFareEstimate();
   }
 
   Future<void> _onDestinationTap() async {
@@ -233,7 +120,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (!mounted || selection == null) return;
     setState(() => _dropoff = selection);
     _syncBookingFormProvider();
-    _maybeUpdateFareEstimate();
   }
 
   void _onSwap() {
@@ -243,45 +129,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _dropoff = a;
     });
     _syncBookingFormProvider();
-    _maybeUpdateFareEstimate();
   }
 
   void _onContinue() {
     final routes =
         ref.read(intercityRoutesProvider).asData?.value ?? <IntercityRoute>[];
-    final vehicles =
-        ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
     final matched = _matchRoute(routes);
-    final selectedType =
-        _vehicleTypes.isNotEmpty ? _vehicleTypes[_selectedVehicleIndex] : null;
-    final vid =
-        selectedType != null
-            ? _vehicleIdForCategory(vehicles, selectedType.categoryCode)
-            : null;
-
-    if (!_canEstimateFare(matchedRoute: matched, vehicleId: vid)) {
+    if (_pickup == null || _pickup!.locationId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            matched == null
-                ? 'No intercity route matches this pickup and destination. '
-                      'Choose locations that appear on a published route.'
-                : selectedType != null
-                ? 'Could not resolve a vehicle for ${selectedType.label}. '
-                      'Try another type or wait for vehicles to load.'
-                : 'No vehicle types available. Please try again later.',
-          ),
-        ),
+        const SnackBar(content: Text('Please select a pickup location.')),
+      );
+      return;
+    }
+    if (_dropoff == null || _dropoff!.locationId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a destination location.')),
       );
       return;
     }
 
-    final form = _buildBookingFormState(matchedRoute: matched, vehicleId: vid);
+    final form = _buildBookingFormState(matchedRoute: matched);
     ref.read(bookingFormProvider.notifier).setState(form);
-    context.push(
-      '/booking/${form.vehicleId}/form/${form.bookingType}/review',
-      extra: {'form': form},
-    );
+    context.push('/booking/form/${form.bookingType}/review');
   }
 
   Future<void> _pickDate() async {
@@ -295,7 +164,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     if (picked != null) setState(() => _pickupDate = picked);
     _syncBookingFormProvider();
-    _maybeUpdateFareEstimate();
   }
 
   Future<void> _pickTime() async {
@@ -307,7 +175,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     if (picked != null) setState(() => _pickupTime = picked);
     _syncBookingFormProvider();
-    _maybeUpdateFareEstimate();
   }
 
   String _primaryLine(String? label, String placeholder) {
@@ -329,9 +196,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (matched != null) {
       return '${matched.displayName} · ${matched.distanceKm.round()} km';
     }
-    if (_pickup != null && routes.isNotEmpty) {
-      return 'No route for this pair — try another destination';
-    }
     return _dropoff!.label;
   }
 
@@ -343,96 +207,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ) {
       if (next.hasValue) {
         _syncBookingFormProvider();
-        _maybeUpdateFareEstimate();
-      }
-    });
-    ref.listen<AsyncValue<List<Vehicle>>>(vehicleListProvider('ALL'), (
-      prev,
-      next,
-    ) {
-      if (next.hasValue) {
-        final order =
-            ref.read(vehicleCategoryOrderProvider).asData?.value ??
-            kDefaultVehicleCategoryOrder;
-        final types = _deriveVehicleTypes(next.value!, order);
-        setState(() {
-          _vehicleTypes = types;
-          if (types.isNotEmpty && _selectedVehicleIndex >= types.length) {
-            _selectedVehicleIndex = 0;
-          }
-        });
-        _syncBookingFormProvider();
-        _maybeUpdateFareEstimate();
-      }
-    });
-
-    ref.listen<AsyncValue<List<String>>>(vehicleCategoryOrderProvider, (
-      prev,
-      next,
-    ) {
-      if (next.hasValue) {
-        final vehicles =
-            ref.read(vehicleListProvider('ALL')).asData?.value ?? <Vehicle>[];
-        if (vehicles.isEmpty) return;
-        final types = _deriveVehicleTypes(vehicles, next.value!);
-        setState(() {
-          _vehicleTypes = types;
-          if (types.isNotEmpty && _selectedVehicleIndex >= types.length) {
-            _selectedVehicleIndex = 0;
-          }
-        });
-        _syncBookingFormProvider();
-        _maybeUpdateFareEstimate();
       }
     });
 
     final routesAsync = ref.watch(intercityRoutesProvider);
-    final vehiclesAsync = ref.watch(vehicleListProvider('ALL'));
-    ref.watch(vehicleCategoryOrderProvider);
-    final fareState = ref.watch(fareEstimateProvider);
 
     final routes = routesAsync.asData?.value ?? <IntercityRoute>[];
-    final vehicles = vehiclesAsync.asData?.value ?? <Vehicle>[];
-
-    // Keep _vehicleTypes in sync with the latest server data.
-    if (vehicles.isNotEmpty && _vehicleTypes.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final order =
-            ref.read(vehicleCategoryOrderProvider).asData?.value ??
-            kDefaultVehicleCategoryOrder;
-        final types = _deriveVehicleTypes(vehicles, order);
-        setState(() {
-          _vehicleTypes = types;
-          if (types.isNotEmpty && _selectedVehicleIndex >= types.length) {
-            _selectedVehicleIndex = 0;
-          }
-        });
-        _syncBookingFormProvider();
-        _maybeUpdateFareEstimate();
-      });
-    }
-
     final matched = _matchRoute(routes);
-    final selectedType =
-        _vehicleTypes.isNotEmpty ? _vehicleTypes[_selectedVehicleIndex] : null;
-    final vehicleId =
-        selectedType != null
-            ? _vehicleIdForCategory(vehicles, selectedType.categoryCode)
-            : null;
-
-    final bd = fareState.breakdown;
-    final canShowNumbers =
-        _canEstimateFare(matchedRoute: matched, vehicleId: vehicleId) &&
-        bd != null &&
-        !fareState.isLoading;
-
-    int totalAmt = bd?.totalAmount ?? 0;
-    int base = bd?.baseFare ?? 0;
-    final distKm = matched?.distanceKm.round() ?? 0;
-    if (totalAmt <= 0 && base > 0) totalAmt = base;
-    final fareMin = canShowNumbers ? (totalAmt * 0.9).round() : 0;
-    final fareMax = canShowNumbers ? (totalAmt * 1.15).round() : 0;
 
     final bottomPadding =
         MediaQuery.paddingOf(context).bottom + kBottomNavigationBarHeight + 16;
@@ -492,31 +273,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            // const PlanTripSectionLabel('VEHICLE TYPE'),
-            const SizedBox(height: 12),
-            PlanTripVehicleSelector(
-              vehicles: _vehicleTypes,
-              selectedIndex: _selectedVehicleIndex,
-              onSelected: (i) {
-                setState(() => _selectedVehicleIndex = i);
-                _syncBookingFormProvider();
-                _maybeUpdateFareEstimate();
-              },
-            ),
-            const SizedBox(height: 16),
-            PlanTripFareEstimateCard(
-              isLoading:
-                  fareState.isLoading &&
-                  _canEstimateFare(matchedRoute: matched, vehicleId: vehicleId),
-              errorMessage: fareState.fareError,
-              hasEstimate: canShowNumbers,
-              baseFare: base,
-              distanceKm: distKm,
-              totalAmount: totalAmt,
-              fareMin: fareMin,
-              fareMax: fareMax,
-            ),
-            const SizedBox(height: 24),
             PlanTripContinueButton(onPressed: _onContinue),
           ],
         ),

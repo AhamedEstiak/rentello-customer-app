@@ -5,7 +5,6 @@ import '../../../core/models/booking.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class BookingFormState {
-  final String vehicleId;
   final String bookingType;
   final String pickupAddress;
   final String dropoffAddress;
@@ -19,12 +18,12 @@ class BookingFormState {
   final String flightNumber;
   final String airportCode;
   final String? routeId;
+  final String? vehicleCategory;
   final bool isNight;
   /// From matched [IntercityRoute] when booking intercity from home; sent to fare/booking APIs.
   final double? distanceKm;
 
   const BookingFormState({
-    this.vehicleId = '',
     this.bookingType = 'HOURLY',
     this.pickupAddress = '',
     this.dropoffAddress = '',
@@ -36,12 +35,12 @@ class BookingFormState {
     this.flightNumber = '',
     this.airportCode = '',
     this.routeId,
+    this.vehicleCategory,
     this.isNight = false,
     this.distanceKm,
   });
 
   BookingFormState copyWith({
-    String? vehicleId,
     String? bookingType,
     String? pickupAddress,
     String? dropoffAddress,
@@ -53,13 +52,14 @@ class BookingFormState {
     String? flightNumber,
     String? airportCode,
     String? routeId,
+    String? vehicleCategory,
     bool? isNight,
     double? distanceKm,
     bool clearRoute = false,
+    bool clearVehicleCategory = false,
     bool clearDistanceKm = false,
   }) =>
       BookingFormState(
-        vehicleId: vehicleId ?? this.vehicleId,
         bookingType: bookingType ?? this.bookingType,
         pickupAddress: pickupAddress ?? this.pickupAddress,
         dropoffAddress: dropoffAddress ?? this.dropoffAddress,
@@ -71,6 +71,9 @@ class BookingFormState {
         flightNumber: flightNumber ?? this.flightNumber,
         airportCode: airportCode ?? this.airportCode,
         routeId: clearRoute ? null : routeId ?? this.routeId,
+        vehicleCategory: clearVehicleCategory
+            ? null
+            : vehicleCategory ?? this.vehicleCategory,
         isNight: isNight ?? this.isNight,
         distanceKm: clearDistanceKm ? null : distanceKm ?? this.distanceKm,
       );
@@ -80,8 +83,8 @@ class BookingFormNotifier extends Notifier<BookingFormState> {
   @override
   BookingFormState build() => const BookingFormState();
 
-  void init(String vehicleId, String bookingType) {
-    state = BookingFormState(vehicleId: vehicleId, bookingType: bookingType);
+  void init(String bookingType) {
+    state = BookingFormState(bookingType: bookingType);
   }
 
   void setState(BookingFormState newState) {
@@ -118,6 +121,11 @@ class FareEstimateState {
   final String? promoError;
   final String promoCode;
   final int promoDiscount;
+  final String? matchType;
+  final String? routeId;
+  final int? minFare;
+  final int? maxFare;
+  final String? note;
 
   const FareEstimateState({
     this.isLoading = false,
@@ -129,7 +137,14 @@ class FareEstimateState {
     this.promoError,
     this.promoCode = '',
     this.promoDiscount = 0,
+    this.matchType,
+    this.routeId,
+    this.minFare,
+    this.maxFare,
+    this.note,
   });
+
+  bool get hasFare => breakdown != null;
 
   FareEstimateState copyWith({
     bool? isLoading,
@@ -141,6 +156,11 @@ class FareEstimateState {
     String? promoError,
     String? promoCode,
     int? promoDiscount,
+    String? matchType,
+    String? routeId,
+    int? minFare,
+    int? maxFare,
+    String? note,
     bool clearError = false,
     bool clearFareError = false,
     bool clearPromoError = false,
@@ -155,6 +175,11 @@ class FareEstimateState {
         promoError: clearPromoError ? null : promoError ?? this.promoError,
         promoCode: promoCode ?? this.promoCode,
         promoDiscount: promoDiscount ?? this.promoDiscount,
+        matchType: matchType ?? this.matchType,
+        routeId: routeId ?? this.routeId,
+        minFare: minFare ?? this.minFare,
+        maxFare: maxFare ?? this.maxFare,
+        note: note ?? this.note,
       );
 }
 
@@ -206,13 +231,14 @@ class FareEstimateNotifier extends Notifier<FareEstimateState> {
     try {
       final dio = ref.read(dioProvider);
       final body = {
-        'vehicleId': form.vehicleId,
         'bookingType': form.bookingType,
         'totalHours': form.totalHours,
         'isNight': form.isNight,
         if (form.scheduledPickup != null)
           'scheduledPickup': form.scheduledPickup!.toIso8601String(),
         if (form.distanceKm != null) 'distanceKm': form.distanceKm,
+        if (form.vehicleCategory != null && form.vehicleCategory!.isNotEmpty)
+          'vehicleCategory': form.vehicleCategory,
         if (form.pickupLocationId != null) ...{
           // Backward/forward compatible keys: the backend plan uses *UpazilaId.
           'pickupLocationId': form.pickupLocationId,
@@ -228,12 +254,18 @@ class FareEstimateNotifier extends Notifier<FareEstimateState> {
       final breakdown = FareBreakdown.fromJson(
           res.data['breakdown'] as Map<String, dynamic>);
       state = state.copyWith(
-          isLoading: false,
-          breakdown: breakdown,
-          appliedFareRuleId: res.data['appliedFareRuleId'] as String?,
-          promoCodeId: res.data['promoCodeId'] as String?,
-          clearError: true,
-          clearFareError: true);
+        isLoading: false,
+        breakdown: breakdown,
+        appliedFareRuleId: res.data['appliedFareRuleId'] as String?,
+        promoCodeId: res.data['promoCodeId'] as String?,
+        matchType: res.data['matchType'] as String?,
+        routeId: res.data['routeId'] as String?,
+        minFare: (res.data['minFare'] as num?)?.toInt(),
+        maxFare: (res.data['maxFare'] as num?)?.toInt(),
+        note: res.data['note'] as String?,
+        clearError: true,
+        clearFareError: true,
+      );
     } catch (e) {
       _setFareError(e);
     }

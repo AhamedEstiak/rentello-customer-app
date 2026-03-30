@@ -80,9 +80,12 @@ class PlanTripVehicleSelector extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    vehicles[i].emoji,
-                    style: const TextStyle(fontSize: 28),
+                  Icon(
+                    Icons.directions_car_outlined,
+                    size: 26,
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                   ),
                   const SizedBox(height: 6),
                   Text(

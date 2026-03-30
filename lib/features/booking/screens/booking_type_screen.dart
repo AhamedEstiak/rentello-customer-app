@@ -44,9 +44,7 @@ const _types = [
 ];
 
 class BookingTypeScreen extends StatefulWidget {
-  final String vehicleId;
-
-  const BookingTypeScreen({super.key, required this.vehicleId});
+  const BookingTypeScreen({super.key});
 
   @override
   State<BookingTypeScreen> createState() => _BookingTypeScreenState();
@@ -91,7 +89,9 @@ class _BookingTypeScreenState extends State<BookingTypeScreen> {
                             : AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? AppColors.primary : AppColors.border,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
                           width: isSelected ? 2 : 1,
                         ),
                       ),
@@ -107,7 +107,9 @@ class _BookingTypeScreenState extends State<BookingTypeScreen> {
                             ),
                             child: Icon(
                               type.icon,
-                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
                               size: 22,
                             ),
                           ),
@@ -138,7 +140,10 @@ class _BookingTypeScreenState extends State<BookingTypeScreen> {
                             ),
                           ),
                           if (isSelected)
-                            const Icon(Icons.check_circle, color: AppColors.primary),
+                            const Icon(
+                              Icons.check_circle,
+                              color: AppColors.primary,
+                            ),
                         ],
                       ),
                     ),
@@ -148,9 +153,7 @@ class _BookingTypeScreenState extends State<BookingTypeScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => context.push(
-                '/booking/${widget.vehicleId}/form/$_selected',
-              ),
+              onPressed: () => context.push('/booking/form/$_selected'),
               child: const Text('Continue'),
             ),
           ],

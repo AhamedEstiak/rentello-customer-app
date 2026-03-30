@@ -7,7 +7,6 @@ import '../../features/auth/screens/phone_entry_screen.dart';
 import '../../features/auth/screens/otp_verify_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
 import '../../features/home/screens/home_screen.dart';
-import '../../features/home/screens/vehicle_select_screen.dart';
 import '../../features/booking/screens/booking_type_screen.dart';
 import '../../features/booking/screens/booking_form_screen.dart';
 import '../../features/booking/screens/fare_review_screen.dart';
@@ -32,8 +31,8 @@ class RouterNotifier extends ChangeNotifier {
     });
     // On 401, API client clears token and calls this; we logout so redirect runs.
     onUnauthorized = () => _ref.read(authProvider.notifier).logout();
-    onRefreshSession =
-        () => _ref.read(authProvider.notifier).refreshSessionFromStorage();
+    onRefreshSession = () =>
+        _ref.read(authProvider.notifier).refreshSessionFromStorage();
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
@@ -86,74 +85,29 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => MainShell(child: child),
         routes: [
           GoRoute(
-            path: '/vehicles/:type',
-            builder: (context, state) => VehicleSelectScreen(
-              bookingType: state.pathParameters['type']!,
-            ),
-          ),
-          GoRoute(
-            path: '/booking/:vehicleId/form/:type',
-            builder: (context, state) => BookingFormScreen(
-              vehicleId: state.pathParameters['vehicleId']!,
-              bookingType: state.pathParameters['type']!,
-            ),
+            path: '/booking/form/:type',
+            builder: (context, state) =>
+                BookingFormScreen(bookingType: state.pathParameters['type']!),
             routes: [
               GoRoute(
                 path: 'review',
-                builder: (context, state) {
-                  final args = state.extra as Map<String, dynamic>?;
-                  return FareReviewScreen(args: args ?? {});
-                },
+                builder: (context, state) => const FareReviewScreen(),
                 routes: [
                   GoRoute(
                     path: 'confirm',
-                    builder: (context, state) {
-                      final args = state.extra as Map<String, dynamic>?;
-                      return BookingConfirmScreen(args: args ?? {});
-                    },
+                    builder: (context, state) => const BookingConfirmScreen(),
                   ),
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: '/booking/type',
+            builder: (context, state) => const BookingTypeScreen(),
           ),
           GoRoute(
             path: '/home',
             builder: (context, state) => const HomeScreen(),
-            routes: [
-              GoRoute(
-                path: 'booking/type/:vehicleId',
-                builder: (context, state) => BookingTypeScreen(
-                  vehicleId: state.pathParameters['vehicleId']!,
-                ),
-                routes: [
-                  GoRoute(
-                    path: 'form/:type',
-                    builder: (context, state) => BookingFormScreen(
-                      vehicleId: state.pathParameters['vehicleId']!,
-                      bookingType: state.pathParameters['type']!,
-                    ),
-                    routes: [
-                      GoRoute(
-                        path: 'review',
-                        builder: (context, state) {
-                          final args = state.extra as Map<String, dynamic>?;
-                          return FareReviewScreen(args: args ?? {});
-                        },
-                        routes: [
-                          GoRoute(
-                            path: 'confirm',
-                            builder: (context, state) {
-                              final args = state.extra as Map<String, dynamic>?;
-                              return BookingConfirmScreen(args: args ?? {});
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
           ),
           GoRoute(
             path: '/bookings',
@@ -161,9 +115,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: ':id',
-                builder: (context, state) => BookingDetailScreen(
-                  bookingId: state.pathParameters['id']!,
-                ),
+                builder: (context, state) =>
+                    BookingDetailScreen(bookingId: state.pathParameters['id']!),
                 routes: [
                   GoRoute(
                     path: 'invoice',

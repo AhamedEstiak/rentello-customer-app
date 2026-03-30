@@ -8,12 +8,10 @@ import '../providers/booking_form_provider.dart';
 import '../widgets/district_upazila_selector_sheet.dart';
 
 class BookingFormScreen extends ConsumerStatefulWidget {
-  final String vehicleId;
   final String bookingType;
 
   const BookingFormScreen({
     super.key,
-    required this.vehicleId,
     required this.bookingType,
   });
 
@@ -44,7 +42,7 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
           .read(bookingFormProvider.notifier)
-          .init(widget.vehicleId, widget.bookingType);
+          .init(widget.bookingType);
     });
   }
 
@@ -318,7 +316,7 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _onContinue,
-              child: const Text('Review Fare'),
+              child: const Text('Review Trip'),
             ),
           ],
         ),
@@ -351,7 +349,6 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
     }
 
     final form = BookingFormState(
-      vehicleId: widget.vehicleId,
       bookingType: widget.bookingType,
       pickupAddress: _pickupCtrl.text.trim(),
       dropoffAddress: _dropoffCtrl.text.trim(),
@@ -370,10 +367,7 @@ class _BookingFormScreenState extends ConsumerState<BookingFormScreen> {
 
     ref.read(bookingFormProvider.notifier).setState(form);
 
-    context.push(
-      '/booking/${widget.vehicleId}/form/${widget.bookingType}/review',
-      extra: {'form': form},
-    );
+    context.push('/booking/form/${widget.bookingType}/review');
   }
 }
 
