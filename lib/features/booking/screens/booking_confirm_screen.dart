@@ -149,6 +149,8 @@ class _BookingConfirmScreenState extends ConsumerState<BookingConfirmScreen> {
         if (form.flightNumber.isNotEmpty) 'flightNumber': form.flightNumber,
         if (form.airportCode.isNotEmpty) 'airportCode': form.airportCode,
         if (form.routeId != null) 'routeId': form.routeId,
+        if (form.vehicleTypeId != null && form.vehicleTypeId!.isNotEmpty)
+          'vehicleTypeId': form.vehicleTypeId,
         if (form.vehicleCategory != null && form.vehicleCategory!.isNotEmpty)
           'vehicleCategory': form.vehicleCategory,
         if (form.distanceKm != null) 'distanceKm': form.distanceKm,

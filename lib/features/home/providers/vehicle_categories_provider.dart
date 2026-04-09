@@ -7,17 +7,30 @@ import '../../auth/providers/auth_provider.dart';
 class VehicleCategoryInfo {
   final String value;
   final String label;
+  /// `vehicle_types.id` when the API returns it; prefer for fare/booking payloads.
+  final String? id;
 
-  const VehicleCategoryInfo({required this.value, required this.label});
+  const VehicleCategoryInfo({
+    required this.value,
+    required this.label,
+    this.id,
+  });
 
   factory VehicleCategoryInfo.fromJson(Map<String, dynamic> json) {
     final v = json['value'];
     final l = json['label'];
+    final rawId = json['id'];
     final value = v == null ? '' : v.toString();
     final label = l == null ? '' : l.toString();
+    String? id;
+    if (rawId != null) {
+      final s = rawId.toString().trim();
+      if (s.isNotEmpty) id = s;
+    }
     return VehicleCategoryInfo(
       value: value,
       label: label.isNotEmpty ? label : value,
+      id: id,
     );
   }
 }

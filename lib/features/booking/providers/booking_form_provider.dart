@@ -19,6 +19,8 @@ class BookingFormState {
   final String airportCode;
   final String? routeId;
   final String? vehicleCategory;
+  /// Catalog id from `/vehicle-categories`; preferred over [vehicleCategory] for APIs.
+  final String? vehicleTypeId;
   final bool isNight;
   /// From matched [IntercityRoute] when booking intercity from home; sent to fare/booking APIs.
   final double? distanceKm;
@@ -36,6 +38,7 @@ class BookingFormState {
     this.airportCode = '',
     this.routeId,
     this.vehicleCategory,
+    this.vehicleTypeId,
     this.isNight = false,
     this.distanceKm,
   });
@@ -53,10 +56,12 @@ class BookingFormState {
     String? airportCode,
     String? routeId,
     String? vehicleCategory,
+    String? vehicleTypeId,
     bool? isNight,
     double? distanceKm,
     bool clearRoute = false,
     bool clearVehicleCategory = false,
+    bool clearVehicleTypeId = false,
     bool clearDistanceKm = false,
   }) =>
       BookingFormState(
@@ -74,6 +79,9 @@ class BookingFormState {
         vehicleCategory: clearVehicleCategory
             ? null
             : vehicleCategory ?? this.vehicleCategory,
+        vehicleTypeId: clearVehicleCategory || clearVehicleTypeId
+            ? null
+            : vehicleTypeId ?? this.vehicleTypeId,
         isNight: isNight ?? this.isNight,
         distanceKm: clearDistanceKm ? null : distanceKm ?? this.distanceKm,
       );
@@ -237,6 +245,8 @@ class FareEstimateNotifier extends Notifier<FareEstimateState> {
         if (form.scheduledPickup != null)
           'scheduledPickup': form.scheduledPickup!.toIso8601String(),
         if (form.distanceKm != null) 'distanceKm': form.distanceKm,
+        if (form.vehicleTypeId != null && form.vehicleTypeId!.isNotEmpty)
+          'vehicleTypeId': form.vehicleTypeId,
         if (form.vehicleCategory != null && form.vehicleCategory!.isNotEmpty)
           'vehicleCategory': form.vehicleCategory,
         if (form.pickupLocationId != null) ...{

@@ -8,7 +8,7 @@ import '../auth/auth_storage.dart';
 
 const _baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://192.168.0.101:3000/api/customer',
+  defaultValue: 'http://192.168.0.202:3000/api/customer',
 );
 
 const _storage = FlutterSecureStorage();
@@ -192,6 +192,7 @@ Future<Response<Map<String, dynamic>>> postAuthRefresh(
 class ApiEndpoints {
   static const sendOtp = '/auth/send-otp';
   static const verifyOtp = '/auth/verify-otp';
+
   /// `POST` body: `{ [CustomerAuthJsonKeys.refreshToken] }` → `{ [CustomerAuthJsonKeys.token], … }`.
   static const authRefresh = '/auth/refresh';
 
